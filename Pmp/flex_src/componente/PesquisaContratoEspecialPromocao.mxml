@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Pesquisa Contrato"  xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ContratoComercialBean;
+			import bean.StatusContratoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			[Bindable]
+			public var contrato:ContratoComercialBean ;
+			
+			public function init(urlLogin:String, urlReport:String):void{
+				contrato = null;
+				gridPesquisaContrato.dataProvider = null;
+				gridPesquisaContrato.addEventListener("IMPRIMIRCONTRATO", generatePDF);
+				gridPesquisaContrato.addEventListener("REMOVER", removerContrato);
+				this.urlLogin = urlLogin;
+				this.urlReport = urlReport;
+				serviceController.findAllStatusContrato();
+				nomeClientePesquisa.text = '';
+			}
+			private function setContrato():void{
+				if(gridPesquisaContrato.selectedItem != null){
+					contrato = ContratoComercialBean(gridPesquisaContrato.selectedItem);
+					this.close();
+				}
+				
+			}
+			private function onResultFindAllStatusContrato(event:ResultEvent):void{
+				statusContratoPesquisaCbx.dataProvider = new ArrayCollection();
+				var statusContrato:StatusContratoBean = new StatusContratoBean();
+				statusContrato.descricao = 'Selecione';
+				statusContrato.id = -1;
+				ArrayCollection(statusContratoPesquisaCbx.dataProvider).addItem(statusContrato);
+				ArrayCollection(statusContratoPesquisaCbx.dataProvider).addAll(ArrayCollection(event.result));
+				statusContratoPesquisaCbx.selectedIndex = 0;
+			}
+			private function onResultFindAllContratoComercial(event:ResultEvent):void{
+				gridPesquisaContrato.dataProvider = event.result;
+			}
+			private function onResultRemoverContrato(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Contrato removido com sucesso!","Alerta");
+					serviceController.findAllContratoComercialPromocao(nomeClientePesquisa.text, Number(statusContratoPesquisaCbx.selectedItem.id), 'S');
+					return;
+				}
+				Alert.show("Não foi possível remover contrato!","Alerta");
+			}
+			protected function pesquisa_clickHandler(event:MouseEvent):void
+			{
+				if(nomeClientePesquisa.text == ""){
+					Alert.show("O nome do cliente deve ser preenchido!", "Alerta");
+					return;
+				}
+				serviceController.findAllContratoComercialPromocao(nomeClientePesquisa.text, Number(statusContratoPesquisaCbx.selectedItem.id), 'S');
+			}
+			public function generatePDF(ev: Event):void
+			{	
+				
+				contrato = ContratoComercialBean(gridPesquisaContrato.selectedItem);
+				if(contrato.isFindSubstuicaoTributaria != null && contrato.isFindSubstuicaoTributaria == 'P'){
+					Alert.show("Não é possível efetuar a operação enquanto o valor da substituição tributária não retornar!", "Alerta");
+					return;
+				}
+				var uv:URLVariables = new URLVariables();
+				uv.idStatusContrato = contrato.statusContrato;
+				uv.idContrato = contrato.id;
+				uv.isAdministrador = 'CON';
+				
+				var url:URLRequest = new URLRequest(urlReport);
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+			
+			private function removerContrato(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.removerContrato(ContratoComercialBean(gridPesquisaContrato.selectedItem).id);
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllStatusContrato" result="onResultFindAllStatusContrato(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllContratoComercialPromocao" result="onResultFindAllContratoComercial(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerContrato" result="onResultRemoverContrato(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:DataGrid  width="100%" height="100%" id="gridPesquisaContrato" doubleClick="setContrato()" doubleClickEnabled="true" y="49">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Número &#13;do &#13;Contrato" dataField="numeroContrato"/>
+			<mx:DataGridColumn headerText="Código &#13;cliente" dataField="codigoCliente"/>
+			<mx:DataGridColumn headerText="Razão &#13;social" dataField="razaoSocial"/>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Série" dataField="numeroSerie"/>
+			<mx:DataGridColumn headerText="Valor" dataField="valorContrato"/>				
+			<mx:DataGridColumn headerText="Valor &#13;Concessão" dataField="valorContratoConcessao"/>				
+			<mx:DataGridColumn headerText="Parcelas" dataField="qtdParcelas"/>				
+			<mx:DataGridColumn headerText="Status &#13;do &#13;Contrato" dataField="descricaoStatusContrato"/>
+			<mx:DataGridColumn headerText="Data &#13;Criação" dataField="dataCriacao"/>	
+			<mx:DataGridColumn headerText="Documento" dataField="numDocDbs"/>	
+			<mx:DataGridColumn headerText="Msg &#13;DBS" dataField="msgErroDbs"/>	
+			<mx:DataGridColumn headerText="Imprimir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/contrato.png" width="15" visible="{(data.siglaStatusContrato == 'CNA')?false:true}" buttonMode="true" height="15" click="{dispatchEvent(new Event('IMPRIMIRCONTRATO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" visible="{(data.isDeletar == true)?true:false}" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVER', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:FormItem label="Cliente" required="true" width="318" x="27" y="10">
+		<mx:TextInput id="nomeClientePesquisa" toolTip="Digite o cliente, série ou modelo."/>
+	</mx:FormItem>
+	<mx:FormItem label="Status do contrato" required="true" width="321" x="369" y="10">
+		<mx:ComboBox x="48" y="1" id="statusContratoPesquisaCbx" labelField="descricao" width="198"/>
+	</mx:FormItem>
+	<mx:Button label="Pesquisar" id="pesquisa" click="pesquisa_clickHandler(event)" x="742" y="10"/>
+	
+</util:ModuleTitleWindow>

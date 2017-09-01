@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Observação do agendamento" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="250">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			
+			import mx.events.CloseEvent;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var agendamento:AgendamentoBean = new AgendamentoBean();
+			
+			public function init(urlLogin:String, idFuncionario:String, dataCorrente:String):void{
+				this.urlLogin = urlLogin;				
+				this.agendamento.idFuncionario = idFuncionario;
+				this.agendamento.dataAgendamento = dataCorrente;
+				
+			}
+			
+			public function setAgendamento(ag:AgendamentoBean):void{
+				this.agendamento = ag;
+				obsAgTxt.text = agendamento.obs;		
+				excluirObsAgBtn.enabled= true;
+			}
+			
+			private function saveObsAgendamento():void{
+				if(obsAgTxt.text != ""){
+					this.agendamento.obs = obsAgTxt.text;
+					serviceController.saveObsAgendamento(this.agendamento);
+				}else{
+					Alert.show("O campo de observação é obrigatório.", "Alerta!");
+				}
+			}
+			
+			private function onResultsaveObsAgendamento(event:ResultEvent):void{
+				if(event.result != false){
+					Alert.show("Operação realizada com sucesso.", "Alerta!");	
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação.","Alerta!");
+				}
+			}
+			
+
+			protected function excluirObsAgBtn_clickHandler(event:MouseEvent):void
+			{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente excluir a observação?", "Alerta", 3, this, alertClickHandler);				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.removerAgendamentoObs(agendamento);
+				}else{
+					return;
+				}
+			}
+			
+			private function onResultRemoverAgendamentoObs(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Operação realizada com sucesso.", "Alerta!");
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação.","Alerta!");
+				}				
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="saveObsAgendamento" result="onResultsaveObsAgendamento(event);ProgressBarHelper.removeProgressBar()" />	
+		<mx:method name="removerAgendamentoObs" result="onResultRemoverAgendamentoObs(event);ProgressBarHelper.removeProgressBar()" />	
+	</mx:RemoteObject>
+	
+	<mx:TextArea id="obsAgTxt"  width="324" height="161" x="28" y="10"/>
+	<mx:Button id="salvarObsAgBtn" x="130" y="179" label="Salvar" click="saveObsAgendamento()" />	
+	<mx:Button id="excluirObsAgBtn" x="200" y="179" label="Excluir" enabled="false" click="excluirObsAgBtn_clickHandler(event)"/>	
+	
+</util:ModuleTitleWindow>

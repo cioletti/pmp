@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" minWidth="955" minHeight="600" creationComplete="init()">
+	<mx:Style source="pmpCSS.css"/>
+	<mx:Script>
+		<![CDATA[
+			import bean.MaquinaPlBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import util.ProgressBarHelper;
+
+			private var numSerie:String = "";
+			private function init():void{
+				serviceController.buscarSerie();
+			}
+			private function onResultBuscarSerie(event:ResultEvent):void{
+				var pair:String = String(event.result);
+				var array:Array = pair.split(",");
+				serie.text = array[0];
+				modelo.text = array[1];
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(horimetro.text == ''){
+					Alert.show("O horímetro é obrigatório!", "Alerta");
+					return;
+				}
+				var maquinaPlNovo:MaquinaPlBean = new MaquinaPlBean();
+				maquinaPlNovo.numeroSerie = serie.text;
+				maquinaPlNovo.modelo = modelo.text;
+				maquinaPlNovo.horimetro = Number(horimetro.text);
+				serviceController.saveOrUpdateMaquinaPl(maquinaPlNovo);
+			}
+			
+			private function onResultSaveOrUpdateMaquinaPl(event:ResultEvent):void{
+				if(event.result !=null){
+					Alert.show("Atualização de horímetro feita com sucesso!", "Alerta");
+				}else{
+					Alert.show("Erro ao tentar atualizar o horimetro!", "Alerta");
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="buscarSerie" result="onResultBuscarSerie(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdateMaquinaPl" result="onResultSaveOrUpdateMaquinaPl(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:Panel x="373" y="135" title="Atualizar Horímetro" width="732" height="343" layout="absolute">
+		<mx:Button x="288" y="161" label="Salvar" click="button1_clickHandler(event)"/>
+		<mx:Label x="235" y="74" text="Série"/>
+		<mx:Label x="309" y="74" text="Serie" id="serie"/>
+		<mx:Label x="235" y="100" text="Horímetro" />
+		<mx:TextInput x="309" y="99" width="124" restrict="[0-9]" id="horimetro"/>
+		<mx:Label x="235" y="48" text="Modelo"/>
+		<mx:Label x="309" y="48" text="modelo" id="modelo"/>
+	</mx:Panel>
+</mx:Application>

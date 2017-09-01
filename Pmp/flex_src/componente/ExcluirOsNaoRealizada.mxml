@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.UsuarioBean;
+			
+			import util.ProgressBarHelper;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			private var urlLogin:String;
+			private var usuarioBean:UsuarioBean;
+			
+			public function init(urlLogin:String,  usuarioBean:UsuarioBean):void{
+				agendamentoOs.addEventListener("REMOVERAGENDAMENTO", removerAgendamento);
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;						
+			}
+			
+			
+			protected function pesquisarOs():void{
+				if(campoPesquisa.text != ""){
+					serviceController.pesquisarOsNaoRealizada(campoPesquisa.text);
+				}else{
+					Alert.show("Insira o texto que vai ser pesquisado!", "Alerta");					
+				}
+				
+			}
+			
+			private function onResultPesquisarOsNaoRealizada(event:ResultEvent):void{
+				var agendamentoArrayAux:ArrayCollection = ArrayCollection(event.result);
+				agendamentoOs.dataProvider = agendamentoArrayAux;
+			}
+			
+			private function removerAgendamento(event:Event):void{
+				serviceController.removerAgendamento(agendamentoOs.selectedItem);
+			}
+			
+			private function onResultRemoverAgendamento(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Os removida com sucesso!", "Alerta");	
+					pesquisarOs();
+					
+				}else{
+					Alert.show("Erro ao remover Os!", "Alerta");	
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="pesquisarOsNaoRealizada" result="onResultPesquisarOsNaoRealizada(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerAgendamento" result="onResultRemoverAgendamento(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Excluir OS Agendada " fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="51" width="100%" height="39" horizontalAlign="center">
+		<mx:Label text="Número OS"/>
+		<mx:TextInput width="162" id="campoPesquisa"/>
+		<mx:Button label="Pesquisar " height="25" click="pesquisarOs()"/>
+	</mx:HBox>
+	<mx:DataGrid x="0" y="140" width="100%" height="100%" id="agendamentoOs">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Número OS" dataField="numOs"/>
+			<mx:DataGridColumn headerText="Horas" dataField="horasRevisao"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERAGENDAMENTO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

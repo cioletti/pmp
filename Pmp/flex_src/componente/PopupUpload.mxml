@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Arquivos Anexos" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="606" height="322">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.FinanceiroBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+
+			private var financeiroBean:FinanceiroBean;
+			private var idFinanceiro:Number;
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione um  Arquivo(*.xml;*.doc;*.docx;*.xls;*.xlsx;*.pdf)", "*.xml;*.doc;*.docx;*.xls;*.xlsx;*.pdf;");
+			public function init(urlLogin:String, financeiroBean:FinanceiroBean):void{
+				this.urlLogin = urlLogin;
+				this.financeiroBean = financeiroBean;
+				gridArquivo.addEventListener("REMOVERARQUIVO", removerArquivo);
+				gridArquivo.addEventListener("VISUALIZARARQUIVO", visualizarArquivo);
+				serviceController.findAllArquivos(this.financeiroBean.idContHorasStandard);
+				serviceController.findObsFinanceiro(this.financeiroBean.idContHorasStandard);
+			}
+		
+			
+			private function removerArquivo(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente excluir anexo?", "Alerta", 3, this, alertClickHandler);
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					var nomeArquivo: String;
+					nomeArquivo = String(gridArquivo.selectedItem);
+					serviceController.removerArquivoFinanceiro(this.financeiroBean.idContHorasStandard, nomeArquivo);	
+				}
+			}
+			
+			
+			protected function anexarArquivo(event:MouseEvent):void
+			{
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivo);
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivo(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				serviceController.fazerUploadEmDiretorioFinanceiro(this.financeiroBean.idContHorasStandard, data, uploadFile.name);
+			}
+			
+			/**
+			 * @private
+			 * Exibe a mensagem ao usuario informando que o Upload foi realizado com sucesso.
+			 */
+			private function uploadSucesso(event:ResultEvent):void {
+				if(Boolean(event.result)){
+					serviceController.findAllArquivos(this.financeiroBean.idContHorasStandard);
+					Alert.show("Arquivo anexado com sucesso.", "Sucesso!");
+					return;
+				}
+				Alert.show("Ocorreu um erro ao anexar arquivo!", "Alerta!");
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			private function onResultRemoverArquivoFinanceiro(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					serviceController.findAllArquivos(this.financeiroBean.idContHorasStandard);
+					Alert.show("Anexo excluído com sucesso.","Sucesso!");
+				}else{
+					Alert.show("Ocorreu um erro ao excluir anexo!","Alerta!");
+				}
+			}
+			private function onResultFindAllArquivos(event: ResultEvent): void{
+				gridArquivo.dataProvider = ArrayCollection(event.result);
+				
+				//serviceController.getUrlReport();
+			}
+			
+			private function visualizarArquivo(ev: Event): void{
+				var uv:URLVariables = new URLVariables();
+				uv.pastaArquivos = this.financeiroBean.idContHorasStandard;				
+				uv.descricaoArquivo = String(gridArquivo.selectedItem);
+				
+				var url:URLRequest = new URLRequest("ArquivoFinanceiro");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="removerArquivoFinanceiro" result="onResultRemoverArquivoFinanceiro(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllArquivos" result="onResultFindAllArquivos(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="fazerUploadEmDiretorioFinanceiro" result="uploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:Button label="Anexar Arquivo" x="231" y="10" id="anexarFinBtn" click="anexarArquivo(event)"/>
+	<mx:DataGrid id="gridArquivo" height="223" width="100%" y="66" x="0">
+		<mx:columns>
+			<mx:DataGridColumn dataField="" id="anexo" headerText="Arquivos" textAlign="left" sortable="false"/>
+			<mx:DataGridColumn headerText="Ação" textAlign="center" width="100" sortable="false">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:HBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" height="15" click="{dispatchEvent(new Event('REMOVERARQUIVO', true))}" toolTip="Remover Arquivo"/>
+							<mx:Image source="img/download.png" click="{dispatchEvent(new Event('VISUALIZARARQUIVO', true))}" toolTip="Visualizar Anexo"/>
+						</mx:HBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>		
+			
+		</mx:columns>
+	</mx:DataGrid>
+</util:ModuleTitleWindow>

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ContaContabilBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var contaContabil:ContaContabilBean = new ContaContabilBean();
+			
+			public function init(urlLogin:String):void{
+				gridCC.addEventListener("REMOVERCONTACONTABIL", removerCC);
+				
+				myValidators = new Array();
+				myValidators.push(campoDescricao);
+				myValidators.push(campoSigla);
+				this.urlLogin = urlLogin;
+				serviceController.findAllContaContabil();
+			}
+			
+			private function removerCC(ev: Event): void{
+				serviceController.remover(gridCC.selectedItem);
+			}
+			
+			private function onResultFindAllContaContabil(event:ResultEvent):void{
+				gridCC.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function onResultRemover(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					var grid:ArrayCollection = ArrayCollection(gridCC.dataProvider);
+					grid.removeItemAt(gridCC.selectedIndex);
+					novoCC();
+					return;
+				}
+				Alert.show("Não foi possível remover Conta Contabil!", "Alerta");
+			}
+			
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				contaContabil = ContaContabilBean(event.result);
+				if(contaContabil != null){
+					Alert.show("Conta Contabil salvo com sucesso!", "Alerta");
+					serviceController.findAllContaContabil();
+					return;
+				}
+				Alert.show("Erro ao salvar Conta Contabil!", "Alerta");
+			}
+			
+			private function saveOrUpdate():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					contaContabil.descricao = descricao.text;
+					contaContabil.sigla = sigla.text;
+					serviceController.saveOrUpdate(contaContabil);
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+			}
+			
+			public function novoCC():void{
+				descricao.text = "";
+				sigla.text = "";
+				contaContabil = new ContaContabilBean();
+			}
+			
+			private function doubleClickGrid():void{
+				contaContabil = ContaContabilBean(gridCC.selectedItem);
+				descricao.text = contaContabil.descricao;
+				sigla.text = contaContabil.sigla;
+			}
+		]]>
+	</mx:Script>
+	
+	
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo é obrigatório!" required="true" source="{descricao}" property="text" />
+	<mx:StringValidator id="campoSigla" requiredFieldError="Este campo é obrigatório!" required="true" source="{sigla}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllContaContabil" result="onResultFindAllContaContabil(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="remover" result="onResultRemover(event);ProgressBarHelper.removeProgressBar()" />	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Conta Contábil" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:VBox x="0" y="49" width="100%" horizontalAlign="center" verticalAlign="middle" paddingBottom="3" paddingTop="3">
+		<mx:FormItem label="Descricao" required="true" width="259">
+			<mx:TextInput id="descricao"/>
+		</mx:FormItem>
+		<mx:FormItem label="Sigla" required="true" width="210">
+			<mx:TextInput id="sigla" width="58" maxChars="5"/>
+		</mx:FormItem>
+		
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Salvar" click="saveOrUpdate()"/>
+			<mx:Button label="novo" click="novoCC()"/>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:VBox x="0" y="150" width="100%" height="100%" paddingBottom="10" paddingLeft="3" paddingRight="3" paddingTop="2">
+		<mx:DataGrid width="100%" height="352" id="gridCC" doubleClick="doubleClickGrid()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Conta Contábil" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Sigla" dataField="sigla"/>
+				<mx:DataGridColumn headerText="Excluir">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCONTACONTABIL', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</mx:Canvas>

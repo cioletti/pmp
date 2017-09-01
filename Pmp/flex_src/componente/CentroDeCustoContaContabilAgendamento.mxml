@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="780" height="350">
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			import bean.CentroDeCustoBean;
+			import bean.ClienteBean;
+			import bean.ClienteInterBean;
+			import bean.ContaContabilBean;
+			import bean.IndicadorGarantiaBean;
+			import bean.ValidarCentroDeCustoContaContabilBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			public var nomeCliente:String;
+			private var agendamentoObj:AgendamentoBean;
+			public var codCliente:String;
+			[Bindable]
+			private var clienteList:ArrayCollection = new ArrayCollection();
+			public function init(urlLogin:String, agendamentoObj:AgendamentoBean):void{
+				this.urlLogin = urlLogin;
+				this.agendamentoObj = agendamentoObj;
+				//tipoClienteCbx.selectedIndex = 0;
+				labelClienteInter.includeInLayout = false;
+				labelClienteInter.visible = false;
+				//serviceController.findAllBgrp();
+				modeloText.text = agendamentoObj.modelo;
+				if(this.agendamentoObj.siglaTipoContrato == 'CON' || this.agendamentoObj.siglaTipoContrato == 'VPG' || this.agendamentoObj.siglaTipoContrato == 'VEPM'){
+					labelClienteInter.includeInLayout = true;
+					labelClienteInter.visible = true;
+					formBuscarCliente.includeInLayout = false;
+					formBuscarCliente.visible = false;
+					formCodigoCliente.includeInLayout = false;
+					formCodigoCliente.visible = false;
+					tipoClienteCbx.selectedIndex = 0;
+					clienteInterCbx.editable = false;
+					clienteInterCbx.enabled = false;
+					
+					serviceController.findAllClienteInter();
+					
+				} else if(this.agendamentoObj.siglaTipoContrato == 'VEN'){
+					tipoClienteCbx.selectedIndex = 1;
+					codigoCliente.text = this.agendamentoObj.codigoCliente;
+					nomeCliente = this.agendamentoObj.razaoSocial;
+				}
+				if(this.agendamentoObj.siglaClassificacaoContrato == 'CUS'){
+					formEnderecoCliente.visible = true;
+					enderecoCliente.text = this.agendamentoObj.local;
+				}else if(this.agendamentoObj.siglaClassificacaoContrato == 'PART' && this.agendamentoObj.isPartner == 'S'){
+					formEnderecoCliente.visible = true;
+					enderecoCliente.text = this.agendamentoObj.local;
+				}
+				//serviceController.findAllIndicadorGarantia();
+				//serviceController.findAllCentroDeCusto();
+				
+				
+			}
+//			private function onResultFindAllClienteInterCC(event:ResultEvent):void{
+//				clienteList.removeAll();
+//				clienteInterCbx.dataProvider = null;
+//				clienteInterCbx.open();
+//				clienteList = ArrayCollection(event.result);
+//			}
+			
+//			private function onResultFindAllIndicadorGarantia(event:ResultEvent):void{
+//				indGarantiaCbx.dataProvider = ArrayCollection(event.result);
+//			}
+//			private function onResultFindAllCentroDeCusto(event:ResultEvent):void{
+//				ccCbx.dataProvider = ArrayCollection(event.result);
+//				serviceController.findAllContaContabil();
+//			}
+			
+//			private function onResultFindAllContaContabil(event:ResultEvent):void{
+//				contaContabilCbx.dataProvider = ArrayCollection(event.result);
+//				serviceController.findAllClienteInter();
+//			}
+//			private function onFindAllBgrp(event:ResultEvent):void{
+//				bgrpCbx.dataProvider = ArrayCollection(event.result);
+//				modeloText.text = checkInObj.modelo;
+//				
+//			}
+			private function onResultFindAllClienteInter(event:ResultEvent):void{
+				clienteList.removeAll();
+				clienteInterCbx.dataProvider = null; 
+				clienteInterCbx.open();
+				clienteList = ArrayCollection(event.result);
+				//this.changeComboTipoCliente();
+				this.fixCliInter();
+			}
+//			private function onResultValidarCentroDeCustoContaContabil(event:ResultEvent):void{
+//				if(Boolean(event.result) == true){					
+//					dispatchEvent(new Event('REGRAVALIDA', true));
+//					return;
+//				}
+//				Alert.show("Regra inválida", "Alerta");
+//			}
+//			private function changeCheckBox():void{
+//				tipoClienteCbx.selectedIndex = -1;
+//				indGarantiaCbx.selectedIndex = -1;
+//				if(checkIndGarantia.selected){
+//					labelIndGarantiaCheck.includeInLayout = true;
+//					labelIndGarantiaCheck.visible = true;
+//					labelTipoCliente.includeInLayout = false;
+//					labelTipoCliente.visible = false;
+//					serviceController.findAllClienteInterCC();
+//				}else{					
+//					labelClienteInter.includeInLayout = true;
+//					labelClienteInter.visible = true;
+//					labelIndGarantiaCheck.includeInLayout = false;
+//					labelIndGarantiaCheck.visible = false;
+//					labelTipoCliente.includeInLayout = true;
+//					labelTipoCliente.visible = true;
+//					serviceController.findAllClienteInter();
+//				}
+//			}
+			private function changeCheckBoxBgrp():void{
+				if (standard.selected){
+					bgrpCbx.selectedIndex = 40;
+					bgrpCbx.enabled = false;					
+				}else{
+					bgrpCbx.enabled = true;
+					bgrpCbx.selectedIndex = -1;
+				}
+			}
+			private function changeUrgenciaCheckBox():void{
+				if (standard.selected){
+					
+				}
+				
+			}
+			
+//			private function changeComboIndGarantia():void{
+//				var indObj:IndicadorGarantiaBean = indGarantiaCbx.selectedItem as IndicadorGarantiaBean;
+//				if(indObj.ind == 'FALE' || indObj.ind == 'REFC' || indObj.ind == 'REFO'){
+//					labelClienteInter.includeInLayout = true;
+//					labelClienteInter.visible = true;
+//				}else{
+//					labelClienteInter.includeInLayout = false;
+//					labelClienteInter.visible = false;
+//				}
+//			}
+			private function changeComboTipoCliente():void{
+				
+				if(tipoClienteCbx.selectedItem != null){
+					if(tipoClienteCbx.selectedItem.valor == 'INT'){
+						labelClienteInter.includeInLayout = true;
+						labelClienteInter.visible = true;
+						formBuscarCliente.includeInLayout = false;
+						formBuscarCliente.visible = false;
+						formCodigoCliente.includeInLayout = false;
+						formCodigoCliente.visible = false;
+						serviceController.findAllClienteInter();
+						
+					}else{
+						labelClienteInter.includeInLayout = false;
+						labelClienteInter.visible = false;
+//						fixCentroDeCustoCliExterno();
+//						fixContaContabilCliExterno();
+						formBuscarCliente.includeInLayout = true;
+						formBuscarCliente.visible = true;
+						formCodigoCliente.includeInLayout = true;
+						formCodigoCliente.visible = true;
+					}
+				}
+			}
+			
+//			private function fixCentroDeCustoCliInter():void{
+//				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+//				for(var i:int=0; i < ccList.length; i++){
+//					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+//					if(cc.sigla == '08'){
+//						ccCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+//			private function fixContaContabilCliInter():void{
+//				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+//				for(var i:int=0; i < cocList.length; i++){
+//					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+//					if(cocInter.sigla == '11'){
+//						contaContabilCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+//			private function fixCentroDeCustoCliExterno():void{
+//				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+//				for(var i:int=0; i < ccList.length; i++){
+//					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+//					if(cc.sigla == '09'){
+//						ccCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+//			private function fixContaContabilCliExterno():void{
+//				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+//				for(var i:int=0; i < cocList.length; i++){
+//					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+//					if(cocInter.sigla == '01'){
+//						contaContabilCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+			private function fixCliInter():void{
+				var ciList:ArrayCollection = ArrayCollection(clienteInterCbx.dataProvider);
+				for(var i:int=0; i < ciList.length; i++){
+					var ciInter:ClienteInterBean = ClienteInterBean(ciList.getItemAt(i));
+					if(ciInter.customerNum == '09XX411' && (this.agendamentoObj.siglaTipoContrato == 'CON' || this.agendamentoObj.siglaTipoContrato == 'VPG' || this.agendamentoObj.siglaTipoContrato == 'VEPM')){
+						clienteInterCbx.selectedIndex = i;
+						break;
+					}
+					if(ciInter.customerNum == '09XX629' && this.agendamentoObj.siglaTipoContrato == 'REN'){
+						clienteInterCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+//			private function fixCentroDeCustoCliInterRen():void{
+//				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+//				for(var i:int=0; i < ccList.length; i++){
+//					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+//					if(cc.sigla == '06'){
+//						ccCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+//			private function fixContaContabilCliInterRen():void{
+//				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+//				for(var i:int=0; i < cocList.length; i++){
+//					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+//					if(cocInter.sigla == '07'){
+//						contaContabilCbx.selectedIndex = i;
+//						break;
+//					}
+//				}
+//			}
+			private function fixCliInterRen():void{
+				var ciList:ArrayCollection = ArrayCollection(clienteInterCbx.dataProvider);
+				for(var i:int=0; i < ciList.length; i++){
+					var ciInter:ClienteInterBean = ClienteInterBean(ciList.getItemAt(i));
+					
+				}
+			}
+			
+			
+			private function alertClickHandlerCriarOs(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					this.validarDadosCliente();
+				}
+			}
+			
+			
+			public var beanV:ValidarCentroDeCustoContaContabilBean;
+			
+			private function validarCentroDeCustoContaContabil():void{
+//				if(this.agendamentoObj.horimetro <= 0){
+//					Alert.show("Não é permitido criar OS com o horímetro menor ou igual a zero!","Alerta");
+//					return;
+//				}
+				if((this.agendamentoObj.siglaClassificacaoContrato == 'PART' && this.agendamentoObj.isPartner == 'S') || this.agendamentoObj.siglaClassificacaoContrato == 'CUS'){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("O endereço de entrega das peças está correto?\nPois será despachado para o cliente no mesmo.", "Alerta", 3, this, alertClickHandlerCriarOs);	
+				}else{
+					serviceController.verificarChamadoCampo(this.agendamentoObj.numSerie);
+					
+				}
+			}
+			
+			private function onResultVerificarChamadoCampo(event:ResultEvent):void{
+				var msgChamado:String = String(event.result);
+				if(msgChamado.length > 0){
+					Alert.show(msgChamado, "Alerta");
+				}
+				this.validarDadosCliente();
+			}
+			
+			private function validarDadosCliente():void{
+				if(tipoClienteCbx.selectedItem == null){
+					Alert.show("O campo tipo de Cliente é obrigatório!","Alerta");
+					return;
+				}
+				beanV = new ValidarCentroDeCustoContaContabilBean();
+				//				if(ccCbx.selectedIndex == -1){
+				//					Alert.show("O campo Centro de Custo é obrigatório!","Alerta");
+				//					return;
+				//				}
+				//				if(contaContabilCbx.selectedIndex == -1 ){
+				//					Alert.show("O campo Conta Contábil é obrigatório!","Alerta");
+				//					return;
+				//				}
+				
+				if(tipoClienteCbx.selectedItem.valor == 'EXT' && codigoCliente.text == ''){
+					Alert.show("O campo Código do Cliente é obrigatório!","Alerta");
+					return;
+				}
+				//				beanV.centroDeCusto = CentroDeCustoBean(ccCbx.selectedItem).descricao;
+				//				beanV.centroDeCustoSigla = CentroDeCustoBean(ccCbx.selectedItem).sigla;
+				//				beanV.contaContabil = ContaContabilBean(contaContabilCbx.selectedItem).descricao;
+				//				beanV.contaContabilSigla = ContaContabilBean(contaContabilCbx.selectedItem).sigla;
+				//				if(checkIndGarantia.selected){
+				//					if(indGarantiaCbx.selectedIndex != -1){
+				//						var indObj:IndicadorGarantiaBean = indGarantiaCbx.selectedItem as IndicadorGarantiaBean;
+				//						if(indObj.ind == 'FALE' || indObj.ind == 'REFC' || indObj.ind == 'REFO'){
+				//							if(clienteInterCbx.selectedIndex != -1){
+				//								beanV.clienteInter = ClienteInterBean(clienteInterCbx.selectedItem).customerNum;
+				//								beanV.indGarantia = IndicadorGarantiaBean(indGarantiaCbx.selectedItem).ind;
+				//							}else{
+				//								Alert.show("O campo Cliente Inter é obrigatório!","Alerta");
+				//								return;
+				//							}
+				//						}else{
+				//							beanV.indGarantia = IndicadorGarantiaBean(indGarantiaCbx.selectedItem).ind;
+				//							beanV.clienteInter = '';
+				//						}
+				//					}else{
+				//						Alert.show("O campo Indicador de Garantia é obrigatório!","Alerta");
+				//						return;
+				//					}
+				//}else if(tipoClienteCbx.selectedIndex != -1){
+				if(tipoClienteCbx.selectedIndex != -1){
+					if(tipoClienteCbx.selectedItem.valor == 'INT'){
+						if(clienteInterCbx.selectedIndex != -1){
+							beanV.clienteInter = ClienteInterBean(clienteInterCbx.selectedItem).customerNum;
+							beanV.tipoCliente = tipoClienteCbx.selectedItem.valor;
+							codCliente = ClienteInterBean(clienteInterCbx.selectedItem).customerNum;
+						}else{
+							Alert.show("O campo Cliente Inter é obrigatório!","Alerta");
+							return;
+						}
+					}else if(tipoClienteCbx.selectedItem.valor == 'EXT'){
+						beanV.tipoCliente = tipoClienteCbx.selectedItem.valor;
+						codCliente = codigoCliente.text;
+					}
+				}else{
+					Alert.show("O campo Tipo de Cliente é obrigatório!","Alerta");
+					return;
+				}
+				//if (urgencia.selected){
+				//					beanV.urgencia = "S";
+				//				}else{
+				//					beanV.urgencia = "N";
+				//}
+				if(modeloText.text == ""){
+					Alert.show("Campo modelo da máquina é obrigatório","Alerta!");
+					return;
+				}else{
+					beanV.modeloMaquina = modeloText.text.toUpperCase();
+				}
+				if((this.agendamentoObj.siglaClassificacaoContrato == 'PART' && this.agendamentoObj.isPartner == 'S') || this.agendamentoObj.siglaClassificacaoContrato == 'CUS'){
+					if(enderecoCliente.text == ''){
+						Alert.show("Campo endereço do cliente é obrigatório","Alerta!");
+						return;
+					}
+				}
+				
+				
+				
+				dispatchEvent(new Event('REGRAVALIDA', true));
+				
+				//	serviceController.validarCentroDeCustoContaContabil(beanV, checkInObj.idOsPalm); // Não há centro custo e conta contábil(não precisa validar)
+			}
+			
+			private function findCliente():void{
+				if(clienteText.text == ""){
+					Alert.show("O campo de cliente deve ser preenchido!");
+					return;
+				}
+				if(answers.selection.id == "codigo"){
+					serviceController.findDataCliente(clienteText.text);
+				}else{
+					serviceController.findDataNomeCliente(clienteText.text);
+				}
+				
+			}
+			private function onResultFindDataCliente(event:ResultEvent):void{
+				if((event.result as ClienteBean).msg != null){
+					Alert.show((event.result as ClienteBean).msg, "Alerta");
+					return;
+				}
+				codigoCliente.text =  (event.result as ClienteBean).CLCHAVE;
+				nomeCliente = (event.result as ClienteBean).RAZSOC;
+				
+			}
+			
+			private function onResultFindDataNomeCliente(event:ResultEvent):void{
+				this.popupCliente(ArrayCollection(event.result));
+			}
+			
+			[Bindable]
+			private var cliente:Cliente = new Cliente();
+			public function popupCliente(clienteList:ArrayCollection):void{
+				
+				cliente.addEventListener(CloseEvent.CLOSE, removePopUpCliente);
+				PopUpManager.addPopUp(cliente,this,true);
+				PopUpManager.centerPopUp(cliente)
+				cliente.percentWidth = 400;
+				cliente.percentHeight = 300;
+				cliente.init(clienteList);
+				
+				
+			}
+			private function removePopUpCliente(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if((cliente.gridClientes.selectedItem != null && ClienteBean(cliente.gridClientes.selectedItem).FLAGDELETE == 'N')) {
+					codigoCliente.text = (ClienteBean(cliente.gridClientes.selectedItem)).CLCHAVE;
+					nomeCliente = (ClienteBean(cliente.gridClientes.selectedItem)).RAZSOC;
+				}
+				
+			}			
+
+			protected function clienteInterCbx_changeHandler(event:ListEvent):void
+			{
+				this.nomeCliente = ClienteInterBean(clienteInterCbx.selectedItem).descricao;
+			}
+			
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="tipoClienteColl">
+		
+		<mx:Object label="Cliente Interno" valor="INT"/>
+		<mx:Object label="Cliente Externo" valor="EXT"/>
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllClienteInter" result="onResultFindAllClienteInter(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllClienteInterCC" result="onResultFindAllClienteInterCC(event);ProgressBarHelper.removeProgressBar()" /-->
+		<mx:method name="findDataCliente" result="onResultFindDataCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findDataNomeCliente" result="onResultFindDataNomeCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificarChamadoCampo" result="onResultVerificarChamadoCampo(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllBgrp" result="onFindAllBgrp(event);ProgressBarHelper.removeProgressBar()"/-->
+		<!--mx:method name="findAllIndicadorGarantia" result="onResultFindAllIndicadorGarantia(event);ProgressBarHelper.removeProgressBar()" /-->
+		<!--mx:method name="validarCentroDeCustoContaContabil" result="onResultValidarCentroDeCustoContaContabil(event);ProgressBarHelper.removeProgressBar()" /-->
+		<!--mx:method name="findAllContaContabil" result="onResultFindAllContaContabil(event);ProgressBarHelper.removeProgressBar()" /-->
+		<!--mx:method name="findAllCentroDeCusto" result="onResultFindAllCentroDeCusto(event);ProgressBarHelper.removeProgressBar()" /-->
+	</mx:RemoteObject>
+	<mx:VBox x="0" y="0" height="350" width="770" horizontalAlign="center" verticalAlign="middle">
+		<mx:Form  height="266">
+			<!--mx:FormItem label="Indicador de Garantia" width="196">
+				<mx:CheckBox label="" id="checkIndGarantia" click="changeCheckBox()"/>
+			</mx:FormItem-->
+			<!--mx:FormItem label="Indicador de Garantia" id="labelIndGarantiaCheck" includeInLayout="false" visible="false">
+				<mx:ComboBox id="indGarantiaCbx" change="changeComboIndGarantia()" labelField="ind" prompt="Selecione" selectedIndex="-1" ></mx:ComboBox>
+			</mx:FormItem-->
+			<mx:FormItem label="Tipo de Cliente" id="labelTipoCliente">
+				<mx:ComboBox dataProvider="{tipoClienteColl}" change="changeComboTipoCliente()" id="tipoClienteCbx" labelField="label" prompt="Selecione" ></mx:ComboBox>
+			</mx:FormItem>
+			<!--mx:FormItem label="Centro de Custo">
+				<mx:ComboBox id="ccCbx" labelField="siglaDescricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem-->
+			<!--mx:FormItem label="Conta Contábil">
+				<mx:ComboBox id="contaContabilCbx" labelField="siglaDescricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem-->
+			<mx:FormItem label="Cliente Inter" id="labelClienteInter">
+				<mx:ComboBox id="clienteInterCbx" dataProvider="{clienteList}" change="clienteInterCbx_changeHandler(event)" labelField="descricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Bgrp" includeInLayout="false" visible="false">
+				<mx:ComboBox id="bgrpCbx"  labelField="descricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Standard Job" width="196" includeInLayout="false" visible="false">
+				<mx:CheckBox label="" id="standard" click="changeCheckBoxBgrp()">					
+				</mx:CheckBox>
+				
+			</mx:FormItem>
+			<!--mx:FormItem label="Urgência" width="196">
+				<mx:CheckBox label="" id="urgencia" click="changeUrgenciaCheckBox()">					
+				</mx:CheckBox>
+				
+			</mx:FormItem-->
+			<mx:FormItem label="Modelo da Máquina" width="215">
+				<mx:TextInput id="modeloText" width="65"/>					
+			</mx:FormItem>
+			<mx:FormItem id="formBuscarCliente" label="Buscar Cliente" horizontalAlign="center"  borderStyle="solid" cornerRadius="5" borderColor="#FFCC33">
+				<mx:HBox verticalAlign="middle">
+					<mx:VBox>
+						<mx:RadioButtonGroup id="answers" />
+						<mx:RadioButton group="{answers}" id="codigo" label="Código" selected="true"/>
+						<mx:RadioButton group="{answers}" id="nome" label="Nome"/>
+						
+					</mx:VBox>
+					<mx:VBox horizontalAlign="center">
+						<mx:TextInput id="clienteText" width="122"/>
+						<mx:Button label="Buscar" click="findCliente()"/>
+					</mx:VBox>
+				</mx:HBox>	
+			</mx:FormItem>
+			<mx:FormItem id="formCodigoCliente" label="Código Cliente" required="true" width="316">
+				<mx:TextInput id="codigoCliente" width="141" enabled="false" maxChars="20" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem id="formEnderecoCliente" label="Endereço" required="true" visible="false" width="316">
+				<mx:TextInput id="enderecoCliente" width="141" />
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Button label="Ok" click="validarCentroDeCustoContaContabil()"/>
+		
+		
+		
+	</mx:VBox>
+	
+</mx:Canvas>

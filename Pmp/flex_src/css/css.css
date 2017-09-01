@@ -1,0 +1,17 @@
+ div.imagemlod {
+			position:absolute;
+			display: none;
+			left:40%;
+			top:40%;
+		}
+	div.imagemheader {
+		position:absolute;
+		left:0px;
+		top:0px;
+	}
+
+	div.tabela {
+		position:absolute;
+		left:0px;
+		top:70px;
+	}

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+
+	<mx:Script>
+		<![CDATA[
+			import mx.rpc.events.ResultEvent;
+			import bean.ContratoComercialBean;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			
+			public var contrato:ContratoComercialBean ;
+			
+//			public function init(urlLogin:String):void{
+//				this.urlLogin = urlLogin;
+//			}
+			protected function pesquisa_clickHandler(event:MouseEvent):void
+			{
+				serviceController.findAllContratoComercialAVM(nomeClientePesquisa.text);
+			}
+			
+			private function onResultFindAllContratoComercialAVM(event:ResultEvent):void{
+				gridPesquisaContrato.dataProvider = event.result;
+
+			}
+			
+			public function init(urlLogin:String, urlReport:String):void{
+				gridPesquisaContrato.dataProvider = null;
+				gridPesquisaContrato.addEventListener("IMPRIMIRCONTRATO", generatePDF);
+				this.urlLogin = urlLogin;
+				this.urlReport = urlReport;
+				nomeClientePesquisa.text = '';
+			}
+			
+			public function generatePDF(ev: Event):void
+			{	
+				contrato = ContratoComercialBean(gridPesquisaContrato.selectedItem);
+				var uv:URLVariables = new URLVariables();
+				uv.idStatusContrato = contrato.statusContrato;
+				uv.idContrato = contrato.id;
+				uv.isAdministrador = 'CON';
+				
+				var url:URLRequest = new URLRequest(urlReport);
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllContratoComercialAVM" result="onResultFindAllContratoComercialAVM(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Pesquisar Contrato AVM" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid  width="100%" height="595" id="gridPesquisaContrato" doubleClickEnabled="true" y="67">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Número do Contrato" dataField="numeroContrato"/>
+			<mx:DataGridColumn headerText="Código cliente" dataField="codigoCliente"/>
+			<mx:DataGridColumn headerText="Razão social" dataField="razaoSocial"/>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Série" dataField="numeroSerie"/>
+			<mx:DataGridColumn headerText="Valor" dataField="valorContrato"/>				
+			<mx:DataGridColumn headerText="Valor Concessão" dataField="valorContratoConcessao"/>				
+			<mx:DataGridColumn headerText="Status do Contrato" dataField="descricaoStatusContrato"/>
+			<mx:DataGridColumn headerText="Data Criação" dataField="dataCriacao"/>	
+			<mx:DataGridColumn headerText="Funcionario" dataField="nomeFuncionario"/>	
+			<mx:DataGridColumn headerText="Imprimir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/contrato.png" width="15" visible="{(data.siglaStatusContrato == 'CNA')?false:true}" buttonMode="true" height="15" click="{dispatchEvent(new Event('IMPRIMIRCONTRATO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:FormItem label="Razão Social" required="true" width="318" x="10" y="37">
+		<mx:TextInput id="nomeClientePesquisa"/>
+	</mx:FormItem>
+	<mx:Button label="Pesquisar" id="pesquisa" click="pesquisa_clickHandler(event)" x="336" y="37"/>
+	
+</mx:Canvas>

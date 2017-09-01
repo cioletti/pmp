@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Orçamento PMP" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="350" height="130">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			
+			import mx.rpc.events.ResultEvent;
+			
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import util.ProgressBarHelper;
+			
+			public var idContrato:Number;
+			public var idConthoras:Number;
+			public var horasRevisao:Number;
+			private var urlReport:String;
+			private var urlLogin:String;
+						
+			public function init(email:String, idContrato:Number ,urlLogin:String, idConthoras:Number, horasRevisao:Number ):void{
+				emailContato.data = email;
+				this.idContrato = idContrato;
+				this.horasRevisao = horasRevisao;
+				this.idConthoras = idConthoras;
+				serviceController.getUrlReport()
+			}		
+
+			public function generatePDF():void
+			{	
+				
+				var uv:URLVariables = new URLVariables();
+				uv.idContrato = this.idContrato;
+				if(chkBox.selected){
+				uv.emailContato = emailContato.text;
+				}else{
+					uv.emailContato = "";
+				}
+				
+				uv.idConthoras = this.idConthoras
+				uv.horasRevisao = this.horasRevisao
+					
+				var url:URLRequest = new URLRequest(urlReport+"/PropostaPdf");
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+				this.close();
+			}
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+
+	<mx:VBox verticalAlign="middle" width="100%" height="100%">
+		<mx:VBox width="100%" height="100%" horizontalAlign="center">
+		<mx:HBox width="100%" horizontalAlign="center" height="23" textAlign="center">
+		<mx:Text  text="Enviar Email para o contato"/>
+		<mx:CheckBox id="chkBox"/>
+		</mx:HBox>
+		<mx:TextArea id="emailContato" width="232" height="34" editable="false"/>
+		<mx:Button label="Ok" id="enviarBtn" click="generatePDF()"/>
+		</mx:VBox>
+		
+	</mx:VBox>
+	
+</util:ModuleTitleWindow>

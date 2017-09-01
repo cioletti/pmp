@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" title="Peças OS" xmlns:util="util.*" layout="absolute" width="742" height="314">
+	<mx:Script>
+		<![CDATA[
+			import bean.PecaBean;
+			import bean.PecasDbsBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var idContHorasStandard:Number;
+			private var urlLogin:String;
+			private var idPecaOsOperacional:Number = 0;
+			public var isReenvio:Boolean = false;
+			public function init(urlLogin:String, idContHorasStandard:Number):void{
+				this.idContHorasStandard = idContHorasStandard;
+				this.urlLogin = urlLogin;
+				serviceController.findAllOsOperacionalPecas(idContHorasStandard);
+				gridPecas.addEventListener("REMOVERPECA", removerPecas);	
+			}
+			
+			private function onResultFindAllOsOperacionalPecas(event:ResultEvent):void{
+				gridPecas.dataProvider = event.result;
+			}
+			private function onResultRemoverOsOperacionalPecas(event:ResultEvent):void{
+				if(event.result){
+					ArrayCollection(gridPecas.dataProvider).removeItemAt(gridPecas.selectedIndex);
+					Alert.show("Peça removida com sucesso!", "Alerat");
+					this.novo();
+					return;
+				}
+				Alert.show("Não foi possível remover peças!", "Alerat");
+			}
+			private function onResultSaveOrUpdateOsOperacionalPecas(event:ResultEvent):void{
+				if(event.result != null){
+					idPecaOsOperacional = Number(event.result);
+					serviceController.findAllOsOperacionalPecas(this.idContHorasStandard);
+					return;
+				}
+				Alert.show("Não foi possível editar peças!", "Alerat");
+			}
+			private function onResultSendPecasDbs(event:ResultEvent):void{
+				if(event.result){
+					Alert.show("Peças enviadas com sucesso Aguarde o Retorno do DBS!", "Alerta");
+					isReenvio = true;
+					this.close();
+					return;
+				}
+				Alert.show("Não foi possível enviar Peças para o DBS!", "Alerta");
+			}
+			private function editPecas():void{
+				if(gridPecas.dataProvider == null || ArrayCollection(gridPecas.dataProvider).length == 0){
+					return;
+				}
+				var peca:PecaBean = PecaBean(gridPecas.selectedItem);
+				sosText.text = peca.sos;
+				qtdText.text = String(peca.dlrqty);
+				partNumberText.text = peca.pano20;
+			}
+			private function removerPecas(ev:Event):void{
+				serviceController.removerOsOperacionalPecas(PecaBean(gridPecas.selectedItem).id);
+			}
+			
+			private function saveOrUpdateOsOperacionalPecas():void{
+				if(sosText.text == '' || qtdText.text == '' || partNumberText.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				
+				if(gridPecas != null && gridPecas.selectedIndex != -1){
+					idPecaOsOperacional = PecaBean(gridPecas.selectedItem).id;
+				}
+				serviceController.saveOrUpdateOsOperacionalPecas(this.idContHorasStandard, idPecaOsOperacional, partNumberText.text, Number(qtdText.text), sosText.text);
+			}
+			
+			private function novo():void{
+				sosText.text = '';
+				qtdText.text = '';
+				partNumberText.text = '';
+				idPecaOsOperacional = 0;
+				if(gridPecas != null && gridPecas.dataProvider != null){
+					gridPecas.selectedIndex = -1;
+				}	
+			} 
+			
+			private function sendPecasDbs():void{
+				serviceController.sendPecasDbs(this.idContHorasStandard);
+			}
+		]]>
+	</mx:Script>
+	
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllOsOperacionalPecas" result="onResultFindAllOsOperacionalPecas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="sendPecasDbs" result="onResultSendPecasDbs(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerOsOperacionalPecas" result="onResultRemoverOsOperacionalPecas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdateOsOperacionalPecas" result="onResultSaveOrUpdateOsOperacionalPecas(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:DataGrid x="0" y="89" width="100%" height="100%" id="gridPecas" doubleClick="editPecas()" doubleClickEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Part Number" dataField="pano20"/>
+			<mx:DataGridColumn headerText="Part Name" dataField="ds18"/>
+			<mx:DataGridColumn headerText="Qtd" dataField="dlrqty"/>
+			<mx:DataGridColumn headerText="Sos" dataField="sos"/>
+			<mx:DataGridColumn headerText="Excluir" id="columnExcluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:HBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15"  id="excluirSegmento" buttonMode="true" height="15"  click="{dispatchEvent(new Event('REMOVERPECA', true)) }" toolTip="Excluir Peça!" />
+						</mx:HBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:Label x="470" y="26" text="SOS"/>
+	<mx:Label x="310" y="26" text="QTD"/>
+	<mx:TextInput x="532" y="25" width="61" id="sosText" maxChars="3"/>
+	<mx:Label x="34" y="26" text="Part Number"/>
+	<mx:TextInput x="353" y="25" width="65" id="qtdText" restrict="[0-9]"/>
+	<mx:TextInput x="131" y="25" width="127" id="partNumberText" maxChars="200"/>
+	<mx:Button x="230" y="59" label="Salvar" click="saveOrUpdateOsOperacionalPecas()"/>
+	<mx:Button x="373" y="59" label="Reenviar Peças para o DBS" click="sendPecasDbs()"/>
+	<mx:Button x="304" y="59" label="Novo" click="novo()"/>
+	
+</util:ModuleTitleWindow>

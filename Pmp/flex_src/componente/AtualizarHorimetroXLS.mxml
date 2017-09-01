@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione o Arquivo(*.xls)", "*.xls;");
+			
+			private var urlLogin:String;
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+			}
+			
+			private function upload():void {
+				
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivoDetalhes);
+			}
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			private function tratarArquivoDetalhes(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				var nomeArquivo:String = uploadFile.name;
+				
+				serviceController.fazerUploadSmuXls(data, nomeArquivo);
+			}
+			private function onResultfazerUploadSmuXls(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Envio Realizado!", "Alerta");
+				}else{
+					Alert.show("Não foi possível Enviar o arquivo", "Alerta");
+					
+				}
+			}
+			
+			protected function atualizarHorimetro(event:MouseEvent):void
+			{
+				
+			}
+			
+			private function onResultAtualizarHorimetro(event:ResultEvent):void{
+				Alert.show(String(event.result), "Alerta");
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="atualizarHorimetro" result="onResultAtualizarHorimetro(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="fazerUploadSmuXls" result="onResultfazerUploadSmuXls(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Atualizar Horímetro" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="2" y="84" width="100%" horizontalAlign="center">
+		<mx:Image source="img/Excel.png" toolTip="Importar Horímetro" click="upload()" width="26" height="26"/>
+	</mx:HBox>
+	
+</mx:Canvas>

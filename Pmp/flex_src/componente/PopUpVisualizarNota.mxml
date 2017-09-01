@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Visualizar Notas" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute"  width="100%" height="100%" >
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.NotaFiscalBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var usuarioBean:UsuarioBean;
+			public function init(urlLogin:String, minuta:String):void{
+				NF1.text = "";
+				NF2.text = "";
+				NF3.text = "";
+				NF4.text = "";
+				NF5.text = "";
+				NF6.text = "";
+				NF7.text = "";
+				NF8.text = "";
+				NF9.text = "";
+				NF10.text = "";
+				NF11.text = "";
+				NF12.text = "";
+				NF13.text = "";
+				NF14.text = "";
+				NF15.text = "";
+				NF16.text = "";
+				NF17.text = "";
+				NF18.text = "";
+				NF19.text = "";
+				NF20.text = "";
+				NF21.text = "";
+				NF22.text = "";
+				NF23.text = "";
+				NF24.text = "";
+				NF25.text = "";
+				NF26.text = "";
+				NF27.text = "";
+				NF28.text = "";
+				NF29.text = "";
+				NF30.text = "";
+				NF31.text = "";
+				NF32.text = "";
+				serviceController.findAllNotaFiscal(minuta);
+				this.urlLogin = urlLogin;
+			}	
+			private function onResultFindAllNotaFiscal(event:ResultEvent):void{
+				var notaFiscal:NotaFiscalBean = NotaFiscalBean(event.result);
+				NF1.text = notaFiscal.NF1;
+				NF2.text = notaFiscal.NF2;
+				NF3.text = notaFiscal.NF3;
+				NF4.text = notaFiscal.NF4;
+				NF5.text = notaFiscal.NF5;
+				NF6.text = notaFiscal.NF6;
+				NF7.text = notaFiscal.NF7;
+				NF8.text = notaFiscal.NF8;
+				NF9.text = notaFiscal.NF9;
+				NF10.text = notaFiscal.NF10;
+				NF11.text = notaFiscal.NF11;
+				NF12.text = notaFiscal.NF12;
+				NF13.text = notaFiscal.NF13;
+				NF14.text = notaFiscal.NF14;
+				NF15.text = notaFiscal.NF15;
+				NF16.text = notaFiscal.NF16;
+				NF17.text = notaFiscal.NF17;
+				NF18.text = notaFiscal.NF18;
+				NF19.text = notaFiscal.NF19;
+				NF20.text = notaFiscal.NF20;
+				NF21.text = notaFiscal.NF21;
+				NF22.text = notaFiscal.NF22;
+				NF23.text = notaFiscal.NF23;
+				NF24.text = notaFiscal.NF24;
+				NF25.text = notaFiscal.NF25;
+				NF26.text = notaFiscal.NF26;
+				NF27.text = notaFiscal.NF27;
+				NF28.text = notaFiscal.NF28;
+				NF29.text = notaFiscal.NF29;
+				NF30.text = notaFiscal.NF30;
+				NF31.text = notaFiscal.NF31;
+				NF32.text = notaFiscal.NF32;
+				
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllNotaFiscal" result="onResultFindAllNotaFiscal(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>	
+	
+	<mx:HBox width="100%" height="100%" horizontalAlign="center">
+		<mx:HBox width="50%" height="100%" horizontalAlign="center">
+			<mx:Form height="100%" width="100%" >
+				<mx:FormItem label="NF1"  >
+					<mx:Label  id="NF1" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF2"  >
+					<mx:Label  id="NF2" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF3"  >
+					<mx:Label  id="NF3" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF4"  >
+					<mx:Label  id="NF4" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF5"  >
+					<mx:Label  id="NF5" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF6"  >
+					<mx:Label  id="NF6" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF7"  >
+					<mx:Label  id="NF7" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF8"  >
+					<mx:Label  id="NF8" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF9"  >
+					<mx:Label  id="NF9" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF10"  >
+					<mx:Label  id="NF10" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF11"  >
+					<mx:Label  id="NF11" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF12"  >
+					<mx:Label  id="NF12" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF13"  >
+					<mx:Label  id="NF13" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF14"  >
+					<mx:Label  id="NF14" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF15"  >
+					<mx:Label  id="NF15" />
+					
+				</mx:FormItem>
+				<mx:FormItem label="NF16"  >
+					<mx:Label  id="NF16" />
+					
+				</mx:FormItem>
+			</mx:Form>
+			
+		</mx:HBox>
+		<mx:HBox width="50%" height="100%">
+			<mx:Form height="100%" width="100%" >
+			<mx:FormItem label="NF17"  >
+				<mx:Label  id="NF17" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF18"  >
+				<mx:Label  id="NF18" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF19"  >
+				<mx:Label  id="NF19" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF20"  >
+				<mx:Label  id="NF20" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF21"  >
+				<mx:Label  id="NF21" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF22"  >
+				<mx:Label  id="NF22" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF23"  >
+				<mx:Label  id="NF23" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF24"  >
+				<mx:Label  id="NF24" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF25"  >
+				<mx:Label  id="NF25" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF26"  >
+				<mx:Label  id="NF26" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF27"  >
+				<mx:Label  id="NF27" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF28"  >
+				<mx:Label  id="NF28" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF29"  >
+				<mx:Label  id="NF29" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF30"  >
+				<mx:Label  id="NF30" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF31"  >
+				<mx:Label  id="NF31" />
+				
+			</mx:FormItem>
+			<mx:FormItem label="NF32"  >
+				<mx:Label  id="NF32" />
+				
+			</mx:FormItem>
+		</mx:Form>	
+		</mx:HBox>
+	</mx:HBox>
+		
+		
+</util:ModuleTitleWindow>

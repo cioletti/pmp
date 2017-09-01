@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Pesquisar Funcionário" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.UsuarioBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var usuarioBean:UsuarioBean;
+			public function init(urlLogin:String):void{
+				pesquisaFuncionario.addEventListener(KeyboardEvent.KEY_DOWN,keyPressed);
+				this.urlLogin = urlLogin;
+			}	
+			
+			private function keyPressed(evt:KeyboardEvent):void{				
+				if(evt.keyCode == 13){
+					findAllFuncionario();					
+				}			
+			}
+			
+			private function findAllFuncionario():void{
+				if (pesquisaFuncionario.length == 0){
+					Alert.show("O campo descrição é obrigatório!","Alerta");
+					return;
+				}
+				
+				serviceController.findAllFuncionarios(pesquisaFuncionario.text);
+			}
+			private function onResultFindAllFuncionariosByCampoPesquisa(event:ResultEvent):void{
+				funcionarioGrid.dataProvider = event.result;
+			}
+			
+			private function doubleClickCptcd():void{
+				if(funcionarioGrid.selectedItem != null){
+					usuarioBean = new UsuarioBean();
+					this.usuarioBean = UsuarioBean(funcionarioGrid.selectedItem);
+					this.close();
+				}
+			}			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllFuncionarios" result="onResultFindAllFuncionariosByCampoPesquisa(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>	
+	
+	<mx:DataGrid x="0" y="117" width="372" id="funcionarioGrid" height="100%" doubleClickEnabled="true" doubleClick="doubleClickCptcd()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Funcionario" dataField="nome"/>			
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:TextInput x="73" y="48" id="pesquisaFuncionario"/>
+	<mx:Text x="10" y="50" text="Descrição"/>
+	<mx:Button x="258" y="50" label="Pesquisar" click="findAllFuncionario()"/>		
+</util:ModuleTitleWindow>

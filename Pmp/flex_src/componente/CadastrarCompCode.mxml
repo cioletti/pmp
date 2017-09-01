@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.CompCodeBean;
+			import bean.CompartimentoBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.TipoTracaoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var cp:CompCodeBean = new CompCodeBean();
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				gridCompCode.addEventListener("REMOVERCOMPCODE", removerCompCode);
+			serviceController.findAllCompCode();
+			}
+			private function onResultFindAllCompCode(event:ResultEvent): void{
+				gridCompCode.dataProvider = ArrayCollection(event.result);
+				
+			}
+			private function removerCompCode(ev: Event): void{
+				serviceController.removerCompCode(CompCodeBean(gridCompCode.selectedItem));
+			}
+			
+			private function novo():void{
+				descricaoCompCodeTxt.text = "";
+				cp = new CompCodeBean();
+			}
+			
+			private function salvarCompCode():void{
+				if(descricaoCompCodeTxt.text == ""){
+					Alert.show("Preencha a descrição!","Alerta");
+					return;
+				}
+				
+				cp.descricao=descricaoCompCodeTxt.text;
+				serviceController.saveOrUpdateCompCode(cp);
+			}
+			private function onResultSaveOrUpdateCompCode(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Erro ao tentar salvar tipo de tração!","Alerta");
+					return;
+				}
+				Alert.show("Salvo com sucesso!","Alerta");
+				cp=CompCodeBean(event.result);
+				serviceController.findAllCompCode();
+			}
+			private function onResultRemoverCompCode(event:ResultEvent):void{
+				if(event.result == false){
+					Alert.show("Erro ao tentar remover tipo de tração!","Alerta");
+					return;
+				}
+				Alert.show("Removido com sucesso!","Alerta");
+				serviceController.findAllCompCode();
+				descricaoCompCodeTxt.text = "";
+			}
+			
+			private function editCompCode():void{
+				if(gridCompCode.selectedItem!= null){
+					cp = CompCodeBean(gridCompCode.selectedItem);
+					descricaoCompCodeTxt.text = cp.descricao;
+					
+					
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="saveOrUpdateCompCode" result="onResultSaveOrUpdateCompCode(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllCompCode" result="onResultFindAllCompCode(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerCompCode" result="onResultRemoverCompCode(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllTipoTracao" result="onResultFindAllTipoTracao(event);ProgressBarHelper.removeProgressBar()" /-->
+	</mx:RemoteObject>
+	
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Cadastrar Componente Code" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="199" width="100%" height="100%" id="gridCompCode" doubleClickEnabled="true" doubleClick="editCompCode()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Descricao" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCOMPCODE', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:HBox x="0" y="37" width="100%" horizontalAlign="center">
+		<mx:Form> 
+			<mx:FormItem label="Descrição">
+				<mx:TextInput id="descricaoCompCodeTxt" maxChars="255"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Tipo Tração" required="true">
+				<mx:ComboBox id="tipoTracaoCbx" labelField="descricao" />
+			</mx:FormItem-->
+		</mx:Form>
+	</mx:HBox>
+	<mx:HBox width="100%" x="-1" y="155" horizontalAlign="center">
+		<mx:Button label="Salvar" click="salvarCompCode()"/>
+		<mx:Button label="Novo" click="novo()"/>
+	</mx:HBox>
+	
+</mx:Canvas>

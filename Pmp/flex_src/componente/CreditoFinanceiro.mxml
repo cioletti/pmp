@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.FinanceiroBean;
+			import bean.UsuarioBean;
+			
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var financeiroBean:FinanceiroBean;
+			private var usuarioBean:UsuarioBean;
+			public var financeiro:PopupCreditoFinanceiro;
+			public var rejeitar:PopupRejeitarFinanceiro;
+			public var upload:PopupUpload;
+			
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{ // Método que inicia ao carregar componente. (Foi chamado através de GestaoEquipamentos)
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;
+				serviceController.findLiberacaoCredito("");
+				financeiroGrid.addEventListener("APROVAR", popupFinanceiro);
+				financeiroGrid.addEventListener("REJEITAR", popupRejeitarFinanceiro);
+				financeiroGrid.addEventListener("UPLOAD", popupUpload);
+			}
+			
+			private function onResultFindLiberacaoCredito(event:ResultEvent):void{
+				financeiroGrid.dataProvider = event.result;
+			}
+			
+			
+			
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				serviceController.findLiberacaoCredito(campoPesquisa.text);
+			}
+			private function popupFinanceiro(ev: Event): void{
+				financeiro = new PopupCreditoFinanceiro();
+				financeiro.addEventListener(CloseEvent.CLOSE, removePopUpFinanceiro);
+				PopUpManager.addPopUp(financeiro,this,true);
+				PopUpManager.centerPopUp(financeiro)
+				financeiro.init(urlLogin,FinanceiroBean(financeiroGrid.selectedItem).id);	
+			}
+			private function removePopUpFinanceiro(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findLiberacaoCredito("");
+			}
+			private function popupRejeitarFinanceiro(ev: Event): void{
+				rejeitar = new PopupRejeitarFinanceiro();
+				rejeitar.addEventListener(CloseEvent.CLOSE, removePopUpRejeitar);
+				PopUpManager.addPopUp(rejeitar,this,true);
+				PopUpManager.centerPopUp(rejeitar)
+				rejeitar.init(urlLogin,FinanceiroBean(financeiroGrid.selectedItem).id);	
+			}
+			private function removePopUpRejeitar(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findLiberacaoCredito("");
+			}
+			private function popupUpload(ev: Event): void{
+				upload = new PopupUpload();
+				upload.addEventListener(CloseEvent.CLOSE, removePopupUpload);
+				PopUpManager.addPopUp(upload,this,true);
+				PopUpManager.centerPopUp(upload);
+				upload.init(urlLogin, FinanceiroBean(financeiroGrid.selectedItem));
+			}
+			private function removePopupUpload(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findLiberacaoCredito("");
+			}
+			
+		]]>
+	</mx:Script>
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findLiberacaoCredito" result="onResultFindLiberacaoCredito(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllChekinGarantia" result="onResultFindAllChekin(event);ProgressBarHelper.removeProgressBar()" /-->
+	</mx:RemoteObject>
+	
+	<mx:VBox height="100%" width="100%" horizontalAlign="center">
+		<mx:ApplicationControlBar height="50"  width="100%" horizontalAlign="center">
+			<mx:Label text="Aprovação Financeiro" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:HBox width="100%">
+			
+			<mx:Label text="Pesquisar:"/>
+			<mx:TextInput  id="campoPesquisa" toolTip="Digite: Cliente, Cod Cliente, ou Número OS para fazer uma pesquisa." />
+			
+			<!--mx:Label text="Cliente:"/>
+			<mx:TextInput width="105" id="clienteText"/-->
+			
+			<mx:Button label="Pesquisar" click="button1_clickHandler(event)"/>
+			
+			<!--mx:Button label="Criar OS Interna" click="criarOSInterna()"/-->
+		</mx:HBox>	
+		
+		<mx:DataGrid width="100%" id="financeiroGrid" height="100%">
+			<mx:columns>		
+				
+				<mx:DataGridColumn headerText="Cliente" dataField="cliente" />
+				<mx:DataGridColumn headerText="Código do Cliente" dataField="codCliente" />
+				<mx:DataGridColumn headerText="Crédito Solicitado" dataField="vlrEstimado" />
+				<mx:DataGridColumn headerText="Responsável" dataField="nomeFuncionarioResponsavel" />
+				<mx:DataGridColumn headerText="Num. OS" dataField="numeroOs" />
+				<mx:DataGridColumn headerText="Funcionário" dataField="nomeFuncionario" />
+				<mx:DataGridColumn headerText="Data" dataField="data" />
+				<mx:DataGridColumn headerText="Nome Filial" dataField="nomeFilial" />
+				<mx:DataGridColumn headerText="Observacao" dataField="observacao">
+					<mx:itemRenderer> 
+						<mx:Component>
+								<mx:TextArea text="{data.observacao}"/>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<!--mx:DataGridColumn headerText="Aprovar">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/confirm.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('APROVAR', true)) }"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>	
+				<mx:DataGridColumn headerText="Rejeitar">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REJEITAR', true)) }"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				<mx:DataGridColumn headerText="Upload">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/download.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('UPLOAD', true)) }"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+				
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</mx:Canvas>

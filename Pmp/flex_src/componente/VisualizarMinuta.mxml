@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var usuarioBean:UsuarioBean;
+			
+			public function init(urlLogin:String,  usuarioBean:UsuarioBean):void{
+				minutaGrid.addEventListener("VERMINUTA", verMinuta);
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;						
+			}
+			
+			
+			protected function pesquisarOs():void{
+				if(campoPesquisa.text != ""){
+					serviceController.findAllMinuta(campoPesquisa.text);
+				}else{
+					Alert.show("Insira o texto que vai ser pesquisado!", "Alerta");					
+				}
+				
+			}
+			
+			private function onResultfindAllMinuta(event:ResultEvent):void{
+				var minutaArray:ArrayCollection = ArrayCollection(event.result);
+				minutaGrid.dataProvider = minutaArray;
+			}
+			
+			private var visualizarNota:PopUpVisualizarNota = new PopUpVisualizarNota();
+			private function verMinuta(event:Event):void{
+				visualizarNota.addEventListener(CloseEvent.CLOSE, removePopUpVisualizarNota);
+				PopUpManager.addPopUp(visualizarNota,this,true);
+				visualizarNota.width = 1200;
+				visualizarNota.height = 450;
+				PopUpManager.centerPopUp(visualizarNota)
+				visualizarNota.init(urlLogin, minutaGrid.selectedItem.minuta);
+			}
+			
+			private function removePopUpVisualizarNota(event:CloseEvent):void{
+				PopUpManager.removePopUp(visualizarNota);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllMinuta" result="onResultfindAllMinuta(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Vizualizar Minuta " fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="51" width="100%" height="39" horizontalAlign="center">
+		<mx:Label text="Número OS"/>
+		<mx:TextInput width="162" id="campoPesquisa"/>
+		<mx:Button label="Pesquisar " height="25" click="pesquisarOs()"/>
+	</mx:HBox>
+	<mx:DataGrid x="0" y="140" width="100%" height="100%" id="minutaGrid">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Número OS" dataField="numOs"/>
+			<mx:DataGridColumn headerText="Nome Cliente" dataField="cliente"/>
+			<mx:DataGridColumn headerText="Série" dataField="serie" />
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo" />
+			<mx:DataGridColumn headerText="Data Nota" dataField="dataNota" />
+			<mx:DataGridColumn headerText="Volume" dataField="volume" />
+			<mx:DataGridColumn headerText="Data Transaportadora" dataField="dataTransp" />
+			<mx:DataGridColumn headerText="Minuta" dataField="minuta" />
+			<mx:DataGridColumn headerText="Detalhes" >
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/detailed.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('VERMINUTA', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

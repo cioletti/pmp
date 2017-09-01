@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Condição Pagamento" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.CondicaoPagamentoBean;
+			
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;	
+			private var urlLogin:String;
+			public var cp:CondicaoPagamentoBean;
+			public function init(urlLogin:String):void{
+					this.urlLogin = urlLogin;
+			}
+			
+			private function onResultFindAllCondicaoPagamento(event:ResultEvent):void{
+				gridCp.dataProvider = event.result;
+			}
+			
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				serviceController.findAllCondicaoPagamento(pesquisaTxt.text);
+			}
+			
+			protected function selecionarCp():void
+			{
+				if(gridCp != null && gridCp.selectedItem != null){ 
+					cp = CondicaoPagamentoBean(gridCp.selectedItem);
+					this.close();
+				}
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllCondicaoPagamento" result="onResultFindAllCondicaoPagamento(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:Label text="Cond. Pg." x="30" y="17"/>
+	<mx:TextInput id="pesquisaTxt" x="98" y="16"/><mx:Button label="Pesquisar" x="266" y="15" click="button1_clickHandler(event)"/>
+	<mx:DataGrid x="0" y="45" width="100%" height="222" id="gridCp" doubleClickEnabled="true" doubleClick="selecionarCp()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Sigla" dataField="sigla"/>
+		</mx:columns>
+	</mx:DataGrid>
+</util:ModuleTitleWindow>

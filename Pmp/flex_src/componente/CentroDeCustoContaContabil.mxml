@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="800" height="500">
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			import bean.CentroDeCustoBean;
+			import bean.ClienteInterBean;
+			import bean.ContaContabilBean;
+			import bean.IndicadorGarantiaBean;
+			import bean.OperacionalBean;
+			import bean.TipoContratoBean;
+			import bean.ValidarCentroDeCustoContaContabilBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			public var operacional:OperacionalBean;
+			private var urlLogin:String;
+			[Bindable]
+			private var clienteList:ArrayCollection = new ArrayCollection();
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.findAllIndicadorGarantia();
+				serviceController.findAllCentroDeCusto();
+				serviceController.findAllContaContabil();
+				serviceController.findAllClienteInter();
+			
+			}
+			private function onResultFindAllClienteInterCC(event:ResultEvent):void{
+				clienteList.removeAll();
+				clienteInterCbx.dataProvider = null;
+				clienteInterCbx.open();
+				clienteList = ArrayCollection(event.result);
+			}
+			
+			private function onResultFindAllIndicadorGarantia(event:ResultEvent):void{
+				indGarantiaCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllCentroDeCusto(event:ResultEvent):void{
+				ccCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllContaContabil(event:ResultEvent):void{
+				contaContabilCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllClienteInter(event:ResultEvent):void{
+				clienteList.removeAll();
+				clienteInterCbx.dataProvider = null; 
+				clienteInterCbx.open();
+				clienteList = ArrayCollection(event.result);
+				if(operacional.siglaTipoContrato == 'VEN'){
+					tipoClienteCbx.selectedIndex = 1;
+					this.changeComboTipoCliente();
+				}else if(operacional.siglaTipoContrato == 'CON'){
+					tipoClienteCbx.selectedIndex = 0;
+					this.changeComboTipoCliente();
+				}else if(operacional.siglaTipoContrato == 'REN'){
+					tipoClienteCbx.selectedIndex = 0;
+					this.changeComboTipoCliente();
+				}
+			}
+			private function onResultValidarCentroDeCustoContaContabil(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					dispatchEvent(new Event('REGRAVALIDA', true));
+					return;
+				}
+				Alert.show("Regra inválida", "Alerta");
+			}
+			private function changeCheckBox():void{
+				tipoClienteCbx.selectedIndex = -1;
+				indGarantiaCbx.selectedIndex = -1;
+				if(checkIndGarantia.selected){
+					labelIndGarantiaCheck.includeInLayout = true;
+					labelIndGarantiaCheck.visible = true;
+					labelTipoCliente.includeInLayout = false;
+					labelTipoCliente.visible = false;
+					serviceController.findAllClienteInterCC();
+				}else{
+					labelClienteInter.includeInLayout = true;
+					labelClienteInter.visible = true;
+					labelIndGarantiaCheck.includeInLayout = false;
+					labelIndGarantiaCheck.visible = false;
+					labelTipoCliente.includeInLayout = true;
+					labelTipoCliente.visible = true;
+					serviceController.findAllClienteInter();
+				}
+			}
+			
+			private function changeComboIndGarantia():void{
+				var indObj:IndicadorGarantiaBean = indGarantiaCbx.selectedItem as IndicadorGarantiaBean;
+				if(indObj.ind == 'FALE' || indObj.ind == 'REFC' || indObj.ind == 'REFO'){
+					labelClienteInter.includeInLayout = true;
+					labelClienteInter.visible = true;
+				}else{
+					labelClienteInter.includeInLayout = false;
+					labelClienteInter.visible = false;
+				}
+			}
+			private function changeComboTipoCliente():void{
+				if(tipoClienteCbx.selectedItem != null){
+					if(tipoClienteCbx.selectedItem.valor == 'INT'){
+						if(this.operacional.siglaTipoContrato == 'CON'){
+							this.fixContaContabilCon();
+							this.fixCliInterCon();
+						}
+						if(this.operacional.siglaTipoContrato == 'REN'){
+							this.fixContaContabilRen();
+							this.fixCentroDeCustoRen();
+							this.fixCliInterRen();
+						}
+						labelClienteInter.includeInLayout = true;
+						labelClienteInter.visible = true;
+					}else{
+						if(this.operacional.siglaTipoContrato == 'VEN'){
+							this.fixCentroDeCustoCliExt();
+							this.fixContaContabilCliExt();
+							//this.fixCliInter();
+						}else{
+							//						this.fixCentroDeCustoCliInterRen();
+							//						this.fixContaContabilCliInterRen();
+							//						this.fixCliInterRen();
+						}
+						labelClienteInter.includeInLayout = false;
+						labelClienteInter.visible = false;
+					}
+				}
+			}
+			
+			private function fixCentroDeCustoCliExt():void{
+				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+				for(var i:int=0; i < ccList.length; i++){
+					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+					if(cc.sigla == '08'){
+						ccCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixCentroDeCustoRen():void{
+				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+				for(var i:int=0; i < ccList.length; i++){
+					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+					if(cc.sigla == '06'){
+						ccCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixContaContabilCliExt():void{
+				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+				for(var i:int=0; i < cocList.length; i++){
+					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+					if(cocInter.sigla == '01'){
+						contaContabilCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			//			private function fixCliInter():void{
+			//				var ciList:ArrayCollection = ArrayCollection(clienteInterCbx.dataProvider);
+			//				for(var i:int=0; i < ciList.length; i++){
+			//					var ciInter:ClienteInterBean = ClienteInterBean(ciList.getItemAt(i));
+			//					if((Number(this.operacional.filial) == 0 && ciInter.customerNum == '7009904')||
+			//						(Number(this.agendamento.filial) == 20 && ciInter.customerNum == '7209904')||
+			//						(Number(this.agendamento.filial) == 40 && ciInter.customerNum == '7409904')||
+			//						(Number(this.agendamento.filial) == 80 && ciInter.customerNum == '7809904')||
+			//						(Number(this.agendamento.filial) == 81 && ciInter.customerNum == '7819904')||
+			//						(Number(this.agendamento.filial) == 82 && ciInter.customerNum == '7829904')||
+			//						(Number(this.agendamento.filial) == 83 && ciInter.customerNum == '7839904')||
+			//						(Number(this.agendamento.filial) == 84 && ciInter.customerNum == '7849904')||
+			//						(Number(this.agendamento.filial) == 85 && ciInter.customerNum == '7859904')||
+			//						(Number(this.agendamento.filial) == 87 && ciInter.customerNum == '7879904')||
+			//						(Number(this.agendamento.filial) == 88 && ciInter.customerNum == '7889904')){
+			//						clienteInterCbx.selectedIndex = i;
+			//						break;
+			//					}
+			//				}
+			//			}
+			//			private function fixCentroDeCustoCliInterRen():void{
+			//				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+			//				for(var i:int=0; i < ccList.length; i++){
+			//					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+			//					if(cc.sigla == '06'){
+			//						ccCbx.selectedIndex = i;
+			//						break;
+			//					}
+			//				}
+			//			}
+			//			private function fixContaContabilCliInterRen():void{
+			//				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+			//				for(var i:int=0; i < cocList.length; i++){
+			//					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+			//					if(cocInter.sigla == '07'){
+			//						contaContabilCbx.selectedIndex = i;
+			//						break;
+			//					}
+			//				}
+			//			}
+			//			private function fixCliInterRen():void{
+			//				var ciList:ArrayCollection = ArrayCollection(clienteInterCbx.dataProvider);
+			//				for(var i:int=0; i < ciList.length; i++){
+			//					var ciInter:ClienteInterBean = ClienteInterBean(ciList.getItemAt(i));
+			//					if((Number(this.agendamento.filial) == 0 && ciInter.customerNum == '7009903')||
+			//						(Number(this.agendamento.filial) == 20 && ciInter.customerNum == '7209903')||
+			//						(Number(this.agendamento.filial) == 40 && ciInter.customerNum == '7409903')||
+			//						(Number(this.agendamento.filial) == 80 && ciInter.customerNum == '7809903')||
+			//						(Number(this.agendamento.filial) == 81 && ciInter.customerNum == '7819903')||
+			//						(Number(this.agendamento.filial) == 82 && ciInter.customerNum == '7829903')||
+			//						(Number(this.agendamento.filial) == 83 && ciInter.customerNum == '7839903')||
+			//						(Number(this.agendamento.filial) == 84 && ciInter.customerNum == '7849903')||
+			//						(Number(this.agendamento.filial) == 85 && ciInter.customerNum == '7859903')||
+			//						(Number(this.agendamento.filial) == 87 && ciInter.customerNum == '7879903')||
+			//						(Number(this.agendamento.filial) == 88 && ciInter.customerNum == '7889903')){
+			//						clienteInterCbx.selectedIndex = i;
+			//						break;
+			//					}
+			//				}
+			//			}
+			//			private function fixCentroDeCustoCliInterCon():void{
+			//				var ccList:ArrayCollection = ArrayCollection(ccCbx.dataProvider);
+			//				for(var i:int=0; i < ccList.length; i++){
+			//					var cc:CentroDeCustoBean = CentroDeCustoBean(ccList.getItemAt(i));
+			//					if(cc.sigla == '06'){
+			//						ccCbx.selectedIndex = i;
+			//						break;
+			//					}
+			//				}
+			//			}
+			private function fixContaContabilCon():void{
+				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+				for(var i:int=0; i < cocList.length; i++){
+					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+					if(cocInter.sigla == '10'){
+						contaContabilCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixContaContabilRen():void{
+				var cocList:ArrayCollection = ArrayCollection(contaContabilCbx.dataProvider);
+				for(var i:int=0; i < cocList.length; i++){
+					var cocInter:ContaContabilBean = ContaContabilBean(cocList.getItemAt(i));
+					if(cocInter.sigla == '07'){
+						contaContabilCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixCliInterCon():void{
+				var ciList:ArrayCollection = ArrayCollection(clienteInterCbx.dataProvider);
+				for(var i:int=0; i < ciList.length; i++){
+					var ciInter:ClienteInterBean = ClienteInterBean(ciList.getItemAt(i));
+					if((Number(this.operacional.filial) == 0 && ciInter.customerNum == '7009907')||
+						(Number(this.operacional.filial) == 20 && ciInter.customerNum == '7209907')||
+						(Number(this.operacional.filial) == 40 && ciInter.customerNum == '7409907')||
+						(Number(this.operacional.filial) == 80 && ciInter.customerNum == '7809907')||
+						(Number(this.operacional.filial) == 81 && ciInter.customerNum == '7819907')||
+						(Number(this.operacional.filial) == 82 && ciInter.customerNum == '7829907')||
+						(Number(this.operacional.filial) == 83 && ciInter.customerNum == '7839907')||
+						(Number(this.operacional.filial) == 84 && ciInter.customerNum == '7849907')||
+						(Number(this.operacional.filial) == 85 && ciInter.customerNum == '7859907')||
+						(Number(this.operacional.filial) == 87 && ciInter.customerNum == '7879907')||
+						(Number(this.operacional.filial) == 88 && ciInter.customerNum == '7889907')){
+						clienteInterCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixCliInterRen():void{
+				var ciList:ArrayCollection = ArrayCollection(clienteInterCbx.dataProvider);
+				for(var i:int=0; i < ciList.length; i++){
+					var ciInter:ClienteInterBean = ClienteInterBean(ciList.getItemAt(i));
+					if((Number(this.operacional.filial) == 0 && ciInter.customerNum == '7009903')||
+						(Number(this.operacional.filial) == 20 && ciInter.customerNum == '7209903')||
+						(Number(this.operacional.filial) == 40 && ciInter.customerNum == '7409903')||
+						(Number(this.operacional.filial) == 80 && ciInter.customerNum == '7809903')||
+						(Number(this.operacional.filial) == 81 && ciInter.customerNum == '7819903')||
+						(Number(this.operacional.filial) == 82 && ciInter.customerNum == '7829903')||
+						(Number(this.operacional.filial) == 83 && ciInter.customerNum == '7839903')||
+						(Number(this.operacional.filial) == 84 && ciInter.customerNum == '7849903')||
+						(Number(this.operacional.filial) == 85 && ciInter.customerNum == '7859903')||
+						(Number(this.operacional.filial) == 87 && ciInter.customerNum == '7879903')||
+						(Number(this.operacional.filial) == 88 && ciInter.customerNum == '7889903')){
+						clienteInterCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			public var beanV:ValidarCentroDeCustoContaContabilBean;
+			private function validarCentroDeCustoContaContabil():void{
+				beanV = new ValidarCentroDeCustoContaContabilBean();
+				if(ccCbx.selectedIndex == -1){
+					Alert.show("O campo Centro de Custo é obrigatório!","Alerta");
+					return;
+				}
+				if(contaContabilCbx.selectedIndex == -1){
+					Alert.show("O campo Conta Contábil é obrigatório!","Alerta");
+					return;
+				}
+				beanV.centroDeCusto = CentroDeCustoBean(ccCbx.selectedItem).descricao;
+				beanV.centroDeCustoSigla = CentroDeCustoBean(ccCbx.selectedItem).sigla;
+				beanV.contaContabil = ContaContabilBean(contaContabilCbx.selectedItem).descricao;
+				beanV.contaContabilSigla = ContaContabilBean(contaContabilCbx.selectedItem).sigla;
+				if(checkIndGarantia.selected){
+					if(indGarantiaCbx.selectedIndex != -1){
+						var indObj:IndicadorGarantiaBean = indGarantiaCbx.selectedItem as IndicadorGarantiaBean;
+						if(indObj.ind == 'FALE' || indObj.ind == 'REFC' || indObj.ind == 'REFO'){
+							if(clienteInterCbx.selectedIndex != -1){
+								beanV.clienteInter = ClienteInterBean(clienteInterCbx.selectedItem).customerNum;
+								beanV.indGarantia = IndicadorGarantiaBean(indGarantiaCbx.selectedItem).ind;
+							}else{
+								Alert.show("O campo Cliente Inter é obrigatório!","Alerta");
+								return;
+							}
+						}else{
+							beanV.indGarantia = IndicadorGarantiaBean(indGarantiaCbx.selectedItem).ind;
+							beanV.clienteInter = '';
+						}
+					}else{
+						Alert.show("O campo Indicador de Garantia é obrigatório!","Alerta");
+						return;
+					}
+				}else if(tipoClienteCbx.selectedIndex != -1){
+					if(tipoClienteCbx.selectedItem.valor == 'INT'){
+						if(clienteInterCbx.selectedIndex != -1){
+							beanV.clienteInter = ClienteInterBean(clienteInterCbx.selectedItem).customerNum;
+							beanV.tipoCliente = tipoClienteCbx.selectedItem.valor;
+						}else{
+							Alert.show("O campo Cliente Inter é obrigatório!","Alerta");
+							return;
+						}
+					}else if(tipoClienteCbx.selectedItem.valor == 'EXT'){
+						beanV.tipoCliente = tipoClienteCbx.selectedItem.valor;
+					}
+				}else{
+					Alert.show("O campo Tipo de Cliente é obrigatório!","Alerta");
+					return;
+				}
+				serviceController.validarCentroDeCustoContaContabil(beanV);
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="tipoClienteColl">
+		
+		<mx:Object label="Cliente Interno" valor="INT"/>
+		<mx:Object label="Cliente Externo" valor="EXT"/>
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllIndicadorGarantia" result="onResultFindAllIndicadorGarantia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllCentroDeCusto" result="onResultFindAllCentroDeCusto(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllContaContabil" result="onResultFindAllContaContabil(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllClienteInter" result="onResultFindAllClienteInter(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="validarCentroDeCustoContaContabil" result="onResultValidarCentroDeCustoContaContabil(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllClienteInterCC" result="onResultFindAllClienteInterCC(event);ProgressBarHelper.removeProgressBar()" />
+		
+	</mx:RemoteObject>
+	<mx:VBox x="0" y="0" height="100%" width="100%" horizontalAlign="center" verticalAlign="middle">
+		<mx:Form height="201" >
+			<mx:FormItem label="Indicador de Garantia" width="196">
+				<mx:CheckBox label="" id="checkIndGarantia" click="changeCheckBox()"/>
+			</mx:FormItem>
+			<mx:FormItem label="Indicador de Garantia" id="labelIndGarantiaCheck" includeInLayout="false" visible="false">
+				<mx:ComboBox id="indGarantiaCbx" change="changeComboIndGarantia()" labelField="ind" prompt="Selecione" selectedIndex="-1" ></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo de Cliente" id="labelTipoCliente">
+				<mx:ComboBox dataProvider="{tipoClienteColl}" change="changeComboTipoCliente()" id="tipoClienteCbx" labelField="label"  selectedIndex="1"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Centro de Custo">
+				<mx:ComboBox id="ccCbx" labelField="siglaDescricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Conta Contábil">
+				<mx:ComboBox id="contaContabilCbx" labelField="siglaDescricao" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Cliente Inter" id="labelClienteInter">
+				<mx:ComboBox id="clienteInterCbx" dataProvider="{clienteList}" labelField="customerNum" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Button label="Ok" click="validarCentroDeCustoContaContabil()"/>
+	</mx:VBox>
+	
+</mx:Canvas>

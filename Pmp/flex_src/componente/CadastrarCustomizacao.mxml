@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.TipoContratoBean;
+			import bean.TipoCustomizacaoBean;
+			import bean.TipoTracaoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.findAllFamilia();
+				gridCustomizacao.addEventListener("REMOVERCUSTOMIZACAO", removerCustomizacao);
+			}
+			private function removerCustomizacao(ev: Event): void{
+				serviceController.removerTipoCustomizacao(TipoCustomizacaoBean(gridCustomizacao.selectedItem).id);
+			}
+			private function novo():void{
+				descricaoCustomizacaoTxt.text = "";
+			}
+			
+			[Bindable]
+			private var comboFamilia:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				if(comboFamilia.length > 0){
+					comboFamilia.removeAll();
+				}
+				comboFamilia.addAll(ArrayCollection(event.result));
+				familiaCbx.dataProvider = comboFamilia;
+			}
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllModelos(FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				comboModelo.addAll(ArrayCollection(event.result));
+				modeloCbx.dataProvider = comboModelo;
+				
+			}
+			private function onChangeModelo():void{
+				serviceController.findAllTipoCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+			}
+			
+			private function onResultFindAllTipoCustomizacao(event:ResultEvent):void{
+				gridCustomizacao.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function salvarCustomizacao():void{
+				if(modeloCbx.selectedIndex == -1 || descricaoCustomizacaoTxt.text == ""){
+					Alert.show("Todos os campos são de preenchimento obrigatório!","Alerta");
+					return;
+				}
+				var cust:TipoCustomizacaoBean = new TipoCustomizacaoBean();
+				cust.idModelo = ModeloBean(modeloCbx.selectedItem).idModelo;
+				cust.descricao = descricaoCustomizacaoTxt.text;
+				serviceController.saveOrUpdate(cust);
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Erro ao tentar salvar tipo de Customização!","Alerta");
+					return;
+				}
+				Alert.show("Transação realizada com sucesso!","Alerta");
+				serviceController.findAllTipoCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				descricaoCustomizacaoTxt.text = "";
+			}
+			private function onResultRemoverTipoCustomizacao(event:ResultEvent):void{
+				if(event.result == false){
+					Alert.show("Erro ao tentar remover tipo de Customização!","Alerta");
+					return;
+				}
+				Alert.show("Transação realizada com sucesso!","Alerta");
+				serviceController.findAllTipoCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				descricaoCustomizacaoTxt.text = "";
+			}
+			
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelos" result="onResultFindAllModelos(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTipoCustomizacao" result="onResultFindAllTipoCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerTipoCustomizacao" result="onResultRemoverTipoCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllTipoTracao" result="onResultFindAllTipoTracao(event);ProgressBarHelper.removeProgressBar()" /-->
+	</mx:RemoteObject>
+	
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Cadastrar Customização" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="199" width="100%" height="100%" id="gridCustomizacao">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Descricao" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCUSTOMIZACAO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:HBox x="0" y="37" width="100%" horizontalAlign="center">
+		<mx:Form> 
+			<mx:FormItem label="Família" required="true">
+				<mx:ComboBox id="familiaCbx" selectedIndex="-1" labelField="descricao" prompt="Selecione" change="familiaCbx_changeHandler(event)" dataProvider="{comboFamilia}"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox x="48" y="1" id="modeloCbx" labelField="descricao" dataProvider="{comboModelo}" change="onChangeModelo()" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Descrição">
+				<mx:TextInput id="descricaoCustomizacaoTxt" maxChars="255"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Tipo Tração" required="true">
+				<mx:ComboBox id="tipoTracaoCbx" labelField="descricao" />
+			</mx:FormItem-->
+		</mx:Form>
+	</mx:HBox>
+	<mx:HBox width="100%" x="-1" y="155" horizontalAlign="center">
+		<mx:Button label="Salvar" click="salvarCustomizacao()"/>
+		<mx:Button label="Novo" click="novo()"/>
+	</mx:HBox>
+	
+</mx:Canvas>

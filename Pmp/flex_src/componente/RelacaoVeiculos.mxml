@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.DetalhesVeiculosBean;
+			import bean.FilialBean;
+			import bean.UsuarioBean;
+			
+			import flash.utils.flash_proxy;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private	var detalhes:DetalhesVeiculosBean = new DetalhesVeiculosBean();
+			private var tecnicos:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			public function init(urlLogin:String):void{
+				veiculosGrid.addEventListener("EXCLUIRCADPRECO", excluirVeiculo);
+				serviceController.findAllFilial();
+				
+			}
+			private function onResultFindAllFilial(event:ResultEvent):void{
+				filialVeiculo.dataProvider = ArrayCollection(event.result);
+				serviceController.findAllTecnicosVeiculos();
+			}
+			private function onResultFindAllTecnicosVeiculos(event:ResultEvent):void{
+				tecnicos.removeAll();
+				tecnicos =  ArrayCollection(event.result);
+				ArrayCollection(tecnicoCbx.dataProvider).removeAll();
+				ArrayCollection(tecnicoCbx.dataProvider).addAll(tecnicos);
+				serviceController.findallDetalhes();
+			}
+			
+			private function onResultFindallDetalhes(event:ResultEvent):void{
+				veiculosGrid.dataProvider = ArrayCollection(event.result);
+				novo();
+			}
+
+			
+			public function saveOrUpdate(){
+				if(tecnicoCbx.selectedIndex == -1 ){
+					Alert.show("Selecione um Técnico","Alerta");
+					return;
+				}else if(filialVeiculo.selectedIndex == -1){
+					Alert.show("Selecione uma Filial","Alerta");
+					return;
+				}else{
+					detalhes.idFilial = FilialBean(filialVeiculo.selectedItem).stno;
+					detalhes.frota = frota.text;	
+					detalhes.modelo = modelo.text;
+					detalhes.renavan = renavan.text;
+					detalhes.anoVeiculo= ano.text;
+					detalhes.dataCompra= dataCompra.text;
+					detalhes.kmAtualData = kmAtualData.text;
+					detalhes.responsavelId = UsuarioBean(tecnicoCbx.selectedItem).matricula;
+					detalhes.viaFacil = viaFacil.text;
+					detalhes.goodcar = goodCar.text;
+					detalhes.vistoriaCrono = vistoriaCrono.text;
+					detalhes.pi =Number(pi.text);
+					detalhes.trocaPneuDianteiro = trocaPneuDianteiro.text;
+					detalhes.trocaPneuTraseiro = trocaPneuTraseiro.text;
+					detalhes.notebook = notebook.text;
+					detalhes.chassi = chassi.text;
+					detalhes.placa = placa.text;
+					serviceController.saveOrUpdate(detalhes);
+				}
+				
+			}
+			
+			
+			public function excluirVeiculo(event:Event){
+				serviceController.excluirVeiculo(DetalhesVeiculosBean(veiculosGrid.selectedItem));
+			}
+			
+			public function novo(){
+				detalhes = new DetalhesVeiculosBean();
+				filialVeiculo.selectedIndex = -1;
+				tecnicoCbx.selectedIndex = -1;
+				frota.text = "";
+				chassi.text = "";
+				modelo.text ="";
+				renavan.text = "";
+				ano.text ="";
+				placa.text ="";
+				dataCompra.text ="";
+				kmAtualData.text ="";
+				viaFacil.text = "";
+				goodCar.text = "";
+				vistoriaCrono.text = "";
+				pi.text = "";
+				trocaPneuDianteiro.text = "";
+				trocaPneuTraseiro.text = "";
+				notebook.text = "";
+			}
+			
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				if((event.result) != null){
+					Alert.show("Veiculo salvo com sucesso!","Alerta");
+					serviceController.findallDetalhes();
+					return;
+				}
+				Alert.show("Erro ao salvar veiculo!","Alerta");
+			}
+			private function onResultExcluirVeiculo(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Veiculo excluido com sucesso!","Alerta");
+					serviceController.findallDetalhes();
+					return;
+				}
+				Alert.show("Erro ao excluir veiculo!","Alerta");
+			}
+			private function editarVeiculo():void{
+					if(DetalhesVeiculosBean(veiculosGrid.selectedItem) != null){
+					detalhes = DetalhesVeiculosBean(veiculosGrid.selectedItem);
+					this.selectedFilial();
+					this.selectedTecnico();
+					frota.text = detalhes.frota
+					chassi.text = detalhes.chassi;
+					modelo.text = detalhes.modelo;
+					renavan.text = detalhes.renavan;
+					ano.text = String(detalhes.anoVeiculo);
+					placa.text = detalhes.placa;
+					dataCompra.text = detalhes.dataCompra;
+					kmAtualData.text = detalhes.kmAtualData;
+					
+					viaFacil.text = detalhes.viaFacil;
+					goodCar.text = detalhes.goodcar;
+					vistoriaCrono.text = detalhes.vistoriaCrono;
+					pi.text = String(detalhes.pi);
+					trocaPneuDianteiro.text = detalhes.trocaPneuDianteiro;
+					trocaPneuTraseiro.text = detalhes.trocaPneuTraseiro;
+					notebook.text = detalhes.notebook;
+					}else{
+						return;
+					}
+					
+			}
+			
+			private function selectedTecnico():void{
+				var tecnicoList:ArrayCollection = ArrayCollection(tecnicoCbx.dataProvider);
+				for(var i:int=0; i < tecnicoList.length; i++){
+					var tecnico:UsuarioBean = UsuarioBean(tecnicoList.getItemAt(i));
+					if(detalhes.responsavelId == tecnico.matricula){
+						tecnicoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedFilial():void{
+				var filialList:ArrayCollection = ArrayCollection(filialVeiculo.dataProvider);
+				for(var i:int=0; i < filialList.length; i++){
+					var filial:FilialBean = FilialBean(filialList.getItemAt(i));
+					if(detalhes.idFilial == filial.stno){
+						filialVeiculo.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function tecnicoCbx_changeHandler(event:ListEvent):void{
+				var tecnico:UsuarioBean = UsuarioBean(tecnicoCbx.selectedItem);
+				if(tecnico.nome != 'SEM TÉCNICO'){
+					frota.text = tecnico.codVeiculo;
+					placa.text = tecnico.placa;
+				}
+			}
+			
+			
+			
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllTecnicosVeiculos" result="onResultFindAllTecnicosVeiculos(event)"/>
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="excluirVeiculo" result="onResultExcluirVeiculo(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findallDetalhes" result="onResultFindallDetalhes(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllFilial" result="onResultFindAllFilial(event)"/>
+	</mx:RemoteObject>
+	
+	<mx:ApplicationControlBar 
+		x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Relação de Veículos" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:VBox y = "25" height="100%" horizontalAlign="center" x="0">
+		
+		
+		<mx:HBox x="0" y="55" height="100%" width="100%" horizontalAlign="center">		
+			<mx:Form height="100%" width="475" >
+				<mx:FormItem label="Técnico" required="true" width="419">
+					<mx:ComboBox id="tecnicoCbx" labelField="nome" prompt="Selecione" width="100%" change="tecnicoCbx_changeHandler(event)"></mx:ComboBox>
+				</mx:FormItem>
+				<mx:FormItem label="Frota" required="true" width="327">
+					<mx:TextInput width="157" id="frota" />
+				</mx:FormItem>
+				<mx:FormItem label="Filial" required="true" width="327">
+					<mx:ComboBox id="filialVeiculo" labelField="stnm" prompt="Selecione"></mx:ComboBox>
+				</mx:FormItem>
+				<mx:FormItem label="Chassi" required="true" width="327">
+					<mx:TextInput width="157" id="chassi" />
+				</mx:FormItem>
+				<mx:FormItem label="Modelo" required="true" width="327">
+					<mx:TextInput width="157" id="modelo"/>
+				</mx:FormItem>
+				<mx:FormItem label="Renavan" required="true" width="327">
+					<mx:TextInput width="157" id="renavan" />
+				</mx:FormItem>
+				<mx:FormItem label="Ano" required="true" width="327">
+					<mx:TextInput width="157" id="ano" />
+				</mx:FormItem>
+				<mx:FormItem label="Placa" required="true" width="327">
+					<mx:TextInput width="157" id="placa" />
+				</mx:FormItem>
+				<mx:FormItem label="Data da Compra" required="true" width="327">
+					<mx:TextInput width="157" id="dataCompra" />
+				</mx:FormItem>
+			</mx:Form>
+			<mx:Form height="100%" width="447" >
+				<mx:FormItem label="Km Atual (Data)" required="true" width="327">
+					<mx:TextInput width="157" id="kmAtualData" />
+				</mx:FormItem>
+				<mx:FormItem label="Via Fácil" required="true" width="327">
+					<mx:TextInput width="157" id="viaFacil" />
+				</mx:FormItem>
+				<mx:FormItem label="GoodCar" required="true" width="327">
+					<mx:TextInput width="157" id="goodCar" />
+				</mx:FormItem>
+				<mx:FormItem label="Vistoria do Cronotacôgrafo" required="true" width="328" height="22">
+					<mx:TextInput width="157" id="vistoriaCrono" />
+				</mx:FormItem>
+				<mx:FormItem label="P.I." required="true" width="328">
+					<mx:TextInput width="157" id="pi" />
+				</mx:FormItem>
+				<mx:FormItem label="Troca Pneus Traseiros" required="true" width="327">
+					<mx:TextInput width="157" id="trocaPneuTraseiro" />
+				</mx:FormItem>
+				<mx:FormItem label="Troca Pneus Dianteiros" required="true" width="327">
+					<mx:TextInput width="157" id="trocaPneuDianteiro" />
+				</mx:FormItem>
+				<mx:FormItem label="Notebook" required="true" width="327">
+					<mx:TextInput width="157" id="notebook" />
+				</mx:FormItem>
+			</mx:Form>
+				
+		</mx:HBox>
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Salvar" click="saveOrUpdate()"/>
+			<mx:Button label="Novo" click="novo()"/>
+		</mx:HBox>
+		<mx:HBox width="100%" horizontalAlign="center" verticalAlign="center" height="100%">	
+			<mx:DataGrid height="100%" width="100%" id="veiculosGrid" verticalAlign="middle" doubleClick="editarVeiculo()" doubleClickEnabled="true"> 
+				<mx:columns >
+					<mx:DataGridColumn headerText="Frota" dataField="frota" width="55" />
+					<mx:DataGridColumn headerText="Filial" dataField="filial" width="50"  />
+					<mx:DataGridColumn headerText="Chassi" dataField="chassi" width="150"  />
+					<mx:DataGridColumn headerText="Placa" dataField="placa"  width="70" />
+					<mx:DataGridColumn headerText="Modelo" dataField="modelo" width="60"   />
+					<mx:DataGridColumn headerText="Renavan" dataField="renavan"  />
+					<mx:DataGridColumn headerText="Ano" dataField="anoVeiculo"  width="40" />
+					<mx:DataGridColumn headerText="Data&#13;da Compra" dataField="dataCompra"  />			
+					<mx:DataGridColumn headerText="Km Atual&#13;(DATA)" dataField="kmAtualData" />
+					<mx:DataGridColumn headerText="Responsável" dataField="responsavelNome"  />
+					<mx:DataGridColumn headerText="Via Fácil" dataField="viaFacil" width="60" />
+					<mx:DataGridColumn headerText="GoodCar" dataField="goodcar" />
+					<mx:DataGridColumn headerText="Vistótia do&#13;Cronotacôgrafo" dataField="vistoriaCrono" />
+					<mx:DataGridColumn headerText="P.I." dataField="pi" />
+					<mx:DataGridColumn headerText="Troca de Pneus&#13;Traseiros" dataField="trocaPneuTraseiro" />
+					<mx:DataGridColumn headerText="Troca de Pneus&#13;Dianteiros" dataField="trocaPneuDianteiro" />
+					<mx:DataGridColumn headerText="NoteBook" dataField="notebook" />
+					<mx:DataGridColumn headerText="Excluir" dataField="excluir" editable="false">
+						<mx:itemRenderer>
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRCADPRECO', true)) }" />
+								</mx:VBox>
+							</mx:Component> 	
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+			
+		</mx:HBox>
+	</mx:VBox>
+	
+	
+</mx:Canvas>

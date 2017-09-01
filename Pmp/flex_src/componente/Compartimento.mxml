@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.CompartimentoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var comp:CompartimentoBean = new CompartimentoBean();
+			private var urlLogin:String;
+			public  function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				compartimentoGrid.addEventListener("REMOVERCOMPARTIMENTO", removerCompartimento);
+			}
+			
+			private function saveCompratimento():void{
+				if(descricao.text == '' || modelo.text == '' || codigo.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				comp.descricao = descricao.text;
+				comp.modelo = modelo.text;
+				comp.codigo = codigo.text;
+				serviceController.saveCompratimento(comp);
+			}
+			
+			private function onResultSaveCompratimento(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Erro ao tentar salvar compartimento!", "Alerta");
+					return;
+				}
+				comp = CompartimentoBean(event.result);
+				if(!isNaN(comp.id) && comp.id > 0){
+					Alert.show("Compartimento salvo com sucesso!", "Alerta");
+					serviceController.findCompartimento(modelo.text.toUpperCase());
+					return;
+				}
+				Alert.show("Erro ao salvar compartimento!", "Alerta");
+			}
+			
+			private function findCompartimento():void{
+				if(modeloPesquisa.text == ''){
+					Alert.show("Preencha o campo modelo!", "Alerta");
+					return;
+				}
+				serviceController.findCompartimento(modeloPesquisa.text.toUpperCase());
+			}
+			
+			private function onResultFindCompartimento(event:ResultEvent):void{
+				compartimentoGrid.dataProvider = ArrayCollection(event.result);
+			}
+			private function removerCompartimento(ev: Event):void{
+				serviceController.removerCompartimento(compartimentoGrid.selectedItem.id);
+			}
+			
+			private function onResultRemoverCompartimento(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Compartimento removido com sucesso!", "Alerta");
+					serviceController.findCompartimento(modeloPesquisa.text.toUpperCase());
+					novoCompartimento();
+					return;
+				}
+				Alert.show("Não foi possível remover compartimento!", "Alerta");
+			}
+			private function novoCompartimento():void{
+				comp = new CompartimentoBean();
+				descricao.text = "";
+				modelo.text = "";
+				codigo.text = "";
+			}
+			
+			private function editCompartimento():void{
+				if(compartimentoGrid.selectedItem!= null){
+					comp = CompartimentoBean(compartimentoGrid.selectedItem);
+					descricao.text = comp.descricao
+					modelo.text = comp.modelo;
+					codigo.text = comp.codigo;
+				}
+
+			}
+			
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="saveCompratimento" result="onResultSaveCompratimento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findCompartimento" result="onResultFindCompartimento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerCompartimento" result="onResultRemoverCompartimento(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="55" width="100%">
+		<mx:Grid>
+			<mx:GridRow width="100%" height="100%">
+				<mx:GridItem width="100%" height="100%">
+					<mx:Label text="Descrição"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%">
+					<mx:TextInput id="descricao" maxChars="100"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%">
+					<mx:Label text="Modelo"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%">
+					<mx:TextInput id="modelo" maxChars="20"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%">
+					<mx:Label text="Código"/>
+				</mx:GridItem>
+				<mx:GridItem width="100%" height="100%">
+					<mx:TextInput id="codigo" maxChars="20"/>
+				</mx:GridItem>
+			</mx:GridRow>
+		</mx:Grid>
+		<mx:Button label="Salvar" click="saveCompratimento()"/>
+		<mx:Button label="Novo" click="novoCompartimento()"/>
+	</mx:HBox>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Compartimento" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="132" width="100%" height="526" id="compartimentoGrid" doubleClick="editCompartimento()" doubleClickEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Código" dataField="codigo"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCOMPARTIMENTO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:TextInput x="93" y="102" id="modeloPesquisa"/>
+	<mx:Button label="Pesquisar" x="283" y="101" click="findCompartimento()"/>
+	<mx:Label text="Modelo" x="25" y="103"/>
+	
+	
+</mx:Canvas>

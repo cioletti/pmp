@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.CompartimentoBean;
+			import bean.TipoOleoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var tOleo:TipoOleoBean = new TipoOleoBean();
+			private var urlLogin:String;
+			public  function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				tipoOleoGrid.addEventListener("REMOVERTIPOOLEO", removerTipoOleo);
+				serviceController.findAllTipoOleo();
+			}
+			
+			private function saveTipoOleo():void{
+				if(viscosidade.text == ''){
+					Alert.show("Todos os campos são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+				//tOleo.fabricante = fabricante.text;
+				tOleo.viscosidade = viscosidade.text;
+				//tOleo.nomeComercial = nomeComercial.text;
+				serviceController.saveTipoOleo(tOleo);
+			}
+			
+			private function onResultTipoOleo(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Erro ao tentar salvar tipo de óleo!", "Alerta");
+					return;
+				}
+				tOleo = TipoOleoBean(event.result);
+				if(!isNaN(tOleo.id) && tOleo.id > 0){
+					Alert.show("Tipo de óleo salvo com sucesso!", "Alerta");
+					serviceController.findAllTipoOleo();
+					return;
+				}
+				Alert.show("Erro ao salvar tipo de óleo!", "Alerta");
+			}
+			
+			private function findTipoOleo():void{
+//				if(fabricantePesquisa.text == ''){
+//					Alert.show("Preencha o campo fabricante!", "Alerta");
+//					return;
+//				}
+				serviceController.findTipoOleo();
+			}
+			
+			private function onResultFindTipoOleo(event:ResultEvent):void{
+				tipoOleoGrid.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllTipoOleo(event:ResultEvent):void{
+				tipoOleoGrid.dataProvider = ArrayCollection(event.result);
+			}
+			private function removerTipoOleo(ev: Event):void{
+				serviceController.removerTipoOleo(tipoOleoGrid.selectedItem.id);
+			}
+			
+			private function onResultRemoverTipoOleo(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Tipo de óleo removido com sucesso!", "Alerta");
+					serviceController.findAllTipoOleo();
+					novoTipoOleo();
+					return;
+				}
+				Alert.show("Não foi possível remover tipo de óleo!", "Alerta");
+			}
+			private function novoTipoOleo():void{
+				tOleo = new TipoOleoBean();
+				//fabricante.text = "";
+				viscosidade.text = "";
+				//nomeComercial.text = "";
+			}
+			
+			private function editTipoOleo():void{
+				tOleo = TipoOleoBean(tipoOleoGrid.selectedItem);
+				//fabricante.text = tOleo.fabricante;
+				viscosidade.text = tOleo.viscosidade;
+				//nomeComercial.text = tOleo.nomeComercial;
+			}
+			
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="saveTipoOleo" result="onResultTipoOleo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findTipoOleo" result="onResultFindTipoOleo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerTipoOleo" result="onResultRemoverTipoOleo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTipoOleo" result="onResultFindAllTipoOleo(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="55" width="100%" horizontalAlign="center">
+		<mx:Label text="Tipo de Óleo"/>
+		<mx:TextInput id="viscosidade" maxChars="20"/>
+		<mx:Button label="Salvar" click="saveTipoOleo()"/>
+		<mx:Button label="Novo" click="novoTipoOleo()"/>
+	</mx:HBox>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Tipo de Óleo" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:DataGrid x="0" y="85" width="100%" height="100%" id="tipoOleoGrid" doubleClick="editTipoOleo()" doubleClickEnabled="true">
+		<mx:columns>
+			<!--mx:DataGridColumn headerText="Fabricante" dataField="fabricante"/-->
+			<mx:DataGridColumn headerText="Óleo" dataField="viscosidade"/>
+			<!--mx:DataGridColumn headerText="Nome Comercial" dataField="nomeComercial"/-->
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERTIPOOLEO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+	
+</mx:Canvas>

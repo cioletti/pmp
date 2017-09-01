@@ -1,0 +1,697 @@
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute"
+				horizontalAlign="center" paddingTop="0" verticalScrollPolicy="auto" horizontalScrollPolicy="auto" viewSourceURL="srcview/index.html" color="#000101" borderColor="#FFFFFF" width="100%" height="100%" 
+				creationComplete="init()" xmlns:print="org.print.*"
+				xmlns:jrv="com.jaspersoft.reports.viewer.*" >
+	<mx:Style source="pmpCSS.css"/>
+	<mx:Script><![CDATA[
+		import bean.FilialBean;
+		
+		import componente.CadastrarDescontoPdpSpot;
+		
+		import bean.SistemaBean;
+		import bean.UsuarioBean;
+		
+		import componente.Agendamento;
+		import componente.AlterPassword;
+		import componente.AtualizarHorimetroXLS;
+		import componente.CadastrarCompCode;
+		import componente.CadastrarCustomizacao;
+		import componente.CadastrarTracaoAC;
+		import componente.ClienteInter;
+		import componente.Compartimento;
+		import componente.ConfiguracaoManutencao;
+		import componente.ConfiguracaoPrecos;
+		import componente.ConfigurarCustomizacao;
+		import componente.ConfigurarTracao;
+		import componente.ContaContabil;
+		import componente.Contrato;
+		import componente.ContratoAntigo;
+		import componente.ContratoEspecial;
+		import componente.ContratoPromocao;
+		import componente.ContratoRental;
+		import componente.ContratoSpot;
+		import componente.ContratosFinalizadosSemRenovacao;
+		import componente.CreditoFinanceiro;
+		import componente.CriticidadeManutencao;
+		import componente.DashboardContrato;
+		import componente.DashboardMaquinas;
+		import componente.DashboardOperacional;
+		import componente.DashboardProdutividade;
+		import componente.DescontoMultiVac;
+		import componente.DescontoPdp;
+		import componente.EditarFilial;
+		import componente.ExcluirOsNaoRealizada;
+		import componente.Familia;
+		import componente.InspecaoPmp;
+		import componente.Mapa;
+		import componente.MesesManutencao;
+		import componente.Operacional;
+		import componente.PesquisarContratoAvm;
+		import componente.PropostaManutencaoPreventiva;
+		import componente.PularRevisao;
+		import componente.RegraDeNegocio;
+		import componente.RelacaoVeiculos;
+		import componente.Relatorio;
+		import componente.RelatorioBacklog;
+		import componente.RelatorioCustoPecasEMo;
+		import componente.RelatorioIntervencao;
+		import componente.ReportMediaAtendimento;
+		import componente.SincronizarStanderJob;
+		import componente.TipoOleoAtual;
+		import componente.TreeInspecao;
+		import componente.VisualizarMinuta;
+		
+		import mx.collections.ArrayCollection;
+		import mx.collections.XMLListCollection;
+		import mx.core.IFlexDisplayObject;
+		import mx.events.CloseEvent;
+		import mx.events.MenuEvent;
+		import mx.managers.PopUpManager;
+		import mx.rpc.events.ResultEvent;
+		
+		import util.ProgressBarHelper;
+		
+		public var urlLogin:String = "";
+		private var urlReport:String = "";
+		private var urlMapa:String = "";
+		private var _usuarioBean:UsuarioBean;
+		
+		[Bindable]
+		[Embed(source="img/TELA-BRANCA.jpg")]
+		public var fundoBranco            : Class;	
+		public function init():void{
+		
+			serviceController.getUrlLogintServer();
+			serviceController.verificarLogin();
+			serviceController.getUrlReportServer();
+			serviceController.findUrlMapa();
+			serviceController.findAllFilial();
+		}
+		
+		public function popupAlterPassword():void{				
+			var alterPassword:AlterPassword = new AlterPassword();
+			alterPassword.addEventListener(CloseEvent.CLOSE, removePopUpAlterSenha);
+			PopUpManager.addPopUp(alterPassword,this,true);
+			PopUpManager.centerPopUp(alterPassword)
+			alterPassword.init(urlLogin);
+			alterPassword.percentWidth = 500;
+			alterPassword.percentHeight = 300;									
+		}
+		
+		private function removePopUpAlterSenha(obj:CloseEvent):void{
+			PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+		}
+		
+		public function onFindIndicadorEq(event:ResultEvent):void{
+			//myChart.dataProvider = ArrayCollection(event.result);
+		}
+		private function onResultGetUrlLogintServer(event:ResultEvent):void{
+			urlLogin = String(event.result);
+		}
+		private function onResultGetUrlReportServer(event:ResultEvent):void{
+			urlReport = String(event.result);
+		}
+		private function onResultInvalidarSessao(event:ResultEvent):void{
+			_usuarioBean = new UsuarioBean();
+			
+		}
+		public function invalidarSessao(tipo:String):void
+		{	
+			if(tipo == 'SAIR'){
+				serviceController.invalidarSessao();
+				var uv:URLVariables = new URLVariables();
+				var url:URLRequest = new URLRequest(urlLogin);
+				url.method = "POST";
+				navigateToURL(url,"_self");
+			}else{
+				var uv:URLVariables = new URLVariables();
+				uv.matricula = _usuarioBean.login;
+				uv.senha = _usuarioBean.senha;
+				var url:URLRequest = new URLRequest(urlLogin+"/LoginUsuario");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_self");
+				serviceController.invalidarSessao();
+				
+			}
+		}
+		
+		private function onResultVerificarLogin(event:ResultEvent):void{
+			if(event.result != null){
+				_usuarioBean = UsuarioBean(event.result);
+				usuarioLogadoText.text = _usuarioBean.nome;
+				if(_usuarioBean.isAdm || _usuarioBean.siglaPerfil == 'OPER'){
+					filialCbx.visible = true;
+				}
+				for(var i:int = 0; i < _usuarioBean.sistemaList.length; i++){
+					var sis:SistemaBean = SistemaBean(_usuarioBean.sistemaList.getItemAt(i));
+					if(sis.sigla == 'PMP'){
+						if(sis.perfilBean.sigla == 'ADM'){
+							menuBarCollection = new XMLListCollection(menubarXML);
+						} else	if(sis.perfilBean.sigla == 'CON'){
+							menuBarCollection = new XMLListCollection(menubarConsultorXML);
+						}else	if(sis.perfilBean.sigla == 'OPER'){
+							menuBarCollection = new XMLListCollection(menubarOperacionalXML);
+						}else	if(sis.perfilBean.sigla == 'AVM'){
+							menuBarCollection = new XMLListCollection(menubarAvmXML);
+						} else	if(sis.perfilBean.sigla == 'CONE'){
+							menuBarCollection = new XMLListCollection(menubarConsultorEspXML);
+						} else	if(sis.perfilBean.sigla == 'ZOHO'){
+							var con:Contrato = new Contrato();
+							pmpCanvas.addChild(con);
+							con.init(urlLogin, _usuarioBean);
+						} else	if(sis.perfilBean.sigla == 'SUPER'){
+							menuBarCollection = new XMLListCollection(menubarSUPERVISORXML);
+						}else	if(sis.perfilBean.sigla == 'FIN'){
+							menuBarCollection = new XMLListCollection(menubarFINXML);
+						}
+					}
+				}
+			}
+		}
+		
+		//<menuitem label="Imprimir Contrato Jurídico" data="CONT_JUR"/>
+		//<menuitem label="Contratos AVM" data="AVM"/>
+		//<menuitem label="Dashboard Maquinas" data="DASH_MAQ"/>
+		//
+		[Bindable]
+		public var menuBarCollection:XMLListCollection;
+		//<menuitem label="Cadastrar Tipo de Óleo" data="CAD_TO"/>
+		private var menubarXML:XMLList =
+			<>
+				<menuitem label="Administração">
+					<menuitem label="Atualizar Horímetro" data="AT_HR"/>
+                    <menuitem label="Cadastrar Árvore de Inspeção" data="CAD_TREE"/>
+                    <menuitem label="Cadastrar Criticidade de Manutenção" data="CAD_CRIT"/>
+					<menuitem label="Cadastrar Desconto PDP Spot" data="CAD_DESC_PDP_SPOT"/>
+ 					<menuitem label="Cadastrar Famílias de Máquinas" data="CAD_FAM"/>
+                    <menuitem label="Cadastrar Compartimentos de Máquina" data="CAD_COMP"/>
+                    <menuitem label="Cadastrar Tempo para Manutenção" data="CAD_TM"/>
+                    <menuitem label="Cadastrar Tipo de Óleo" data="CAD_TO_AT"/>
+                    <menuitem label="Cadastrar Tração" data="CAD_TRA"/>
+                    <menuitem label="Cadastrar Customização" data="CAD_CUST"/>
+                    <menuitem label="Cadastrar Componente" data="CAD_COMPC"/>
+                    <menuitem label="Configuração de Customização" data="CAD_CONF_CUST"/>
+					<menuitem label="Configuração de Manutenção" data="CDM"/>
+					<menuitem label="Configuração de Preço" data="CAD_CP"/>
+					<menuitem label="Configuração de Tração" data="COF_TRA"/>
+					<menuitem label="Dashboard Contratos" data="DASH_CONT"/>
+					<menuitem label="Dashboard Maquinas" data="DASH_MAQ"/>
+					<menuitem label="Dashboard Operacional" data="DASH_OPER"/>
+					<menuitem label="Dashboard Produtividade" data="DASH_PROD"/>
+					<menuitem label="Desconto Multi Vac" data="DESC_MULT_VAC"/>
+                    <menuitem label="Desconto Pdp" data="CAD_DP"/>
+                    <menuitem label="Excluir Agendamento Não Realizado" data="EXC_AG"/>
+					<menuitem label="Editar Filial" data="EDI_FILIAL"/>
+                    <menuitem label="Pular Revisão" data="PR"/>
+                    <menuitem label="Relação de Veículos" data="RELV"/>
+                    <menuitem label="Sincronizar Stander Job" data="SINC_JOB"/>
+                    <menuitem label="Visualizar Minuta" data="VIS_MIN"/>
+				</menuitem>
+				
+				<menuitem label="Vendas Spot">
+						<menuitem label="Spot" data="CAD_CON_SPOT"/>
+						
+				</menuitem>
+				<menuitem label="Vendas">
+						<menuitem label="Proposta" data="CAD_CON"/>
+						
+				</menuitem>
+			
+				<menuitem label="Contratos Especiais">
+						<menuitem label="Proposta Especial" data="CAD_PES"/>
+				</menuitem>
+			
+				<menuitem label="Promoção">
+						<menuitem label="Promoção" data="PROMO"/>
+				</menuitem>
+			
+			
+				<menuitem label="Operacional">
+						<menuitem label="Agendamento" data="CAD_AGEN"/>
+                        <menuitem label="Controle Operacional" data="CAD_OP"/>
+                        <menuitem label="Inspeção PMP" data="CAD_INSPMP"/>
+                        <menuitem label="Contrato Rental" data="CAD_CON_REN"/>
+						<menuitem label="Contrato Antigo" data="CAD_CON_ANT"/>
+ 						<menuitem label="Proposta de Manutenção Preventiva" data="MP"/>
+				</menuitem>
+				<menuitem label="Mapa">
+						<menuitem label="Máquinas PL" data="MAPA"/>
+				</menuitem>	
+				<menuitem label="Relatórios">
+						<menuitem label="Relatórios" data="REL"/>
+						<menuitem label="Relatório Contratos Finalizados Sem Renovação" data="RCF"/>
+						<menuitem label="Relatório de Peça e Mão de obra" data="RPMO"/>
+						<menuitem label="Relatório de Backlog" data="REBL"/>
+						<menuitem label="Relatório Média de Manutenção" data="RMM"/>
+						<menuitem label="Relatório de Intervenção" data="PPM"/>
+				</menuitem>	
+			</>
+		//<!--menuitem label="Contrato de Monitoramento" data="CON_MON"/-->	
+		private var menubarPRICIPALXML:XMLList =
+			<>				
+				<menuitem label="Menu principal">
+						<menuitem label="Voltar ao menu principal" data="VT_MENU_PRIN"/>
+				</menuitem>		
+			
+			</>
+		private var menubarSUPERVISORXML:XMLList =
+			<>				
+				<menuitem label="Operacional">
+						<menuitem label="Atualizar Horímetro" data="AT_HR"/>
+						<menuitem label="Agendamento" data="CAD_AGEN"/>
+ 						<menuitem label="Inspeção PMP" data="CAD_INSPMP"/>
+				</menuitem>	
+				<menuitem label="Vendas">
+						<menuitem label="Proposta" data="CAD_CON"/>
+						
+				</menuitem>
+				<menuitem label="Promoção">
+						<menuitem label="Promoção" data="PROMO"/>
+				</menuitem>
+			
+				<menuitem label="Relatórios">
+						<menuitem label="Relatórios" data="REL"/>
+						<menuitem label="Relatório Contratos Finalizados Sem Renovação" data="RCF"/>
+						<menuitem label="Relatório de Peça e Mão de obra" data="RPMO"/>
+						<menuitem label="Relatório de Backlog" data="REBL"/>
+						<menuitem label="Relatório Média de Manutenção" data="RMM"/>
+						<menuitem label="Relatório de Intervenção" data="PPM"/>
+				</menuitem>	
+			
+			</>
+			
+		private var menubarConsultorXML:XMLList =
+			<>				
+				<menuitem label="Vendas">
+						<menuitem label="Proposta" data="CAD_CON"/>
+				</menuitem>	
+				<menuitem label="Promoção">
+						<menuitem label="Promoção" data="PROMO"/>
+				</menuitem>
+				<menuitem label="Mapa">
+						<menuitem label="Máquinas PL" data="MAPA"/>
+				</menuitem>
+				<menuitem label="Relatórios">
+						<menuitem label="Relatórios" data="REL"/>
+				</menuitem>	
+
+			</>
+		private var menubarConsultorEspXML:XMLList =
+			<>				
+				<menuitem label="Vendas">
+						<menuitem label="Proposta" data="CAD_CON"/>
+				</menuitem>	
+				<menuitem label="Contratos Especiais">
+						<menuitem label="Proposta Especial" data="CAD_PES"/>
+				</menuitem>
+				<menuitem label="Promoção">
+						<menuitem label="Promoção" data="PROMO"/>
+				</menuitem>
+				<menuitem label="Mapa">
+						<menuitem label="Máquinas PL" data="MAPA"/>
+				</menuitem>
+				<menuitem label="Relatórios">
+						<menuitem label="Relatórios" data="REL"/>
+				</menuitem>	
+
+			</>
+		private var menubarAvmXML:XMLList =
+			<>				
+				<menuitem label="Contratos">
+					<menuitem label="Contratos AVM" data="AVM"/>
+				</menuitem>			
+			</>
+			
+		private var menubarOperacionalXML:XMLList =
+			<>
+		
+				<menuitem label="Operacional">
+						<menuitem label="Atualizar Horímetro" data="AT_HR"/>
+						<menuitem label="Árvore de Inspeção" data="CAD_TREE"/>
+						<menuitem label="Agendamento" data="CAD_AGEN"/>
+						<menuitem label="Controle Operacional" data="CAD_OP"/>
+						<menuitem label="Inspeção PMP" data="CAD_INSPMP"/>
+						<menuitem label="Proposta de Manutenção Preventiva" data="MP"/>
+				</menuitem>
+				<menuitem label="Vendas">
+						<menuitem label="Proposta" data="CAD_CON"/>
+				</menuitem>
+				<menuitem label="Promoção">
+						<menuitem label="Promoção" data="PROMO"/>
+				</menuitem>
+				<menuitem label="Vendas Spot">
+						<menuitem label="Spot" data="CAD_CON_SPOT"/>
+				</menuitem>
+				<menuitem label="Mapa">
+						<menuitem label="Máquinas PL" data="MAPA"/>
+				</menuitem>	
+				<menuitem label="Relatórios">
+						<menuitem label="Relatórios" data="REL"/>
+						<menuitem label="Relatório de Intervenção" data="PPM"/>
+				</menuitem>	
+			</>	
+			
+		private var menubarFINXML:XMLList =
+			<>				
+			<menuitem label="Financeiro">
+					<menuitem label="Aprovação Financeiro" data="CLI_OS"/>
+			</menuitem>	
+			
+			</>
+		
+		
+		private function itemClickHandler(event:MenuEvent):void {
+			var opcao:String = event.item.@data;	
+			///this.setStyle("backgroundImage",fundoBranco);
+			pmpCanvas.removeAllChildren();
+			if(opcao == "CDM"){ 
+				var conf:ConfiguracaoManutencao = new ConfiguracaoManutencao();
+				pmpCanvas.addChild(conf);
+				conf.init(urlLogin);
+			}else /* if(opcao == "CAD_CC"){ 
+				var cc:CentroDeCusto = new CentroDeCusto();
+				pmpCanvas.addChild(cc);
+				cc.init(urlLogin);
+			}else */ if(opcao == "CAD_CCT"){ 
+				var cct:ContaContabil = new ContaContabil();
+				pmpCanvas.addChild(cct);
+				cct.init(urlLogin);
+			}else if(opcao == "CAD_RDN"){ 
+				var rdn:RegraDeNegocio = new RegraDeNegocio();
+				pmpCanvas.addChild(rdn);
+				rdn.init(urlLogin);
+			}else if(opcao == "CAD_CP"){ 
+				var cp:ConfiguracaoPrecos = new ConfiguracaoPrecos();
+				pmpCanvas.addChild(cp);
+				cp.findConfiguracaoPrecos(urlLogin);
+			}else if(opcao == "CAD_CON"){ 
+				var con:Contrato = new Contrato();
+				pmpCanvas.addChild(con);
+				con.init(urlLogin, _usuarioBean);
+			}else if(opcao == "CAD_CI"){ 
+				var ci:ClienteInter = new ClienteInter();
+				pmpCanvas.addChild(ci);
+				ci.init(urlLogin);
+			}else if(opcao == "CAD_DP"){ 
+				var dp:DescontoPdp = new DescontoPdp();
+				pmpCanvas.addChild(dp);
+				dp.init(urlLogin);
+			}else if(opcao == "CAD_AGEN"){ 
+				var ag:Agendamento = new Agendamento();
+				pmpCanvas.addChild(ag);
+				ag.init(urlLogin, _usuarioBean);
+			}else if(opcao == "CAD_OP"){ 
+				var op:Operacional = new Operacional();
+				pmpCanvas.addChild(op);
+				op.init(urlLogin, this._usuarioBean);
+			}else if(opcao == "CAD_TREE"){ 
+				var tree:TreeInspecao = new TreeInspecao();
+				pmpCanvas.addChild(tree);
+				tree.init(urlLogin, this._usuarioBean);
+			}else if(opcao == "CAD_FAM"){ 
+				var fa:Familia = new Familia();
+				pmpCanvas.addChild(fa);
+				fa.init(urlLogin);
+			}else if(opcao == "CAD_INSPMP"){ 
+				var ip:InspecaoPmp = new InspecaoPmp();
+				pmpCanvas.addChild(ip);
+				ip.init(urlLogin);
+			}else if(opcao == "CAD_CON_REN"){ 
+				var conRent:ContratoRental = new ContratoRental();
+				pmpCanvas.addChild(conRent);
+				conRent.init(urlLogin, this._usuarioBean);
+			}else if(opcao == "CONT_JUR"){
+				var uv:URLVariables = new URLVariables();
+				var url:URLRequest = new URLRequest(urlReport);
+				url.method = "GET";
+				navigateToURL(url,"_blank");
+			}else if(opcao == "CAD_CON_ANT"){
+				var conAnt:ContratoAntigo = new ContratoAntigo();
+				pmpCanvas.addChild(conAnt);
+				conAnt.init(urlLogin);
+			}else if(opcao == "MAPA"){
+				var map:Mapa = new Mapa();
+				pmpCanvas.addChild(map);
+				map.init(urlLogin, _usuarioBean, urlMapa);
+				menuBarCollection = new XMLListCollection(menubarPRICIPALXML);
+				filialCbx.visible = false;
+			}else if(opcao == "CAD_COMP"){
+				var comp:Compartimento = new Compartimento();
+				pmpCanvas.addChild(comp);
+				comp.init(urlLogin);
+			}else if(opcao == "CAD_TO_AT"){
+				var to:TipoOleoAtual = new TipoOleoAtual();
+				pmpCanvas.addChild(to);
+				to.init(urlLogin);
+			}else if(opcao == "CAD_TM"){
+				var tm:MesesManutencao = new MesesManutencao();
+				pmpCanvas.addChild(tm);
+				tm.init(urlLogin);
+			}else if(opcao == "CAD_CRIT"){
+				var cr:CriticidadeManutencao = new CriticidadeManutencao();
+				pmpCanvas.addChild(cr);
+				cr.init(urlLogin);
+			}else if(opcao == "REL"){
+				var rel:Relatorio = new Relatorio();
+				pmpCanvas.addChild(rel);
+				rel.init(urlLogin);
+			}else if(opcao == "AVM"){
+				var avm:PesquisarContratoAvm = new PesquisarContratoAvm();
+				pmpCanvas.addChild(avm);
+				avm.init(urlLogin, urlReport);
+			}else if (opcao == "VT_MENU_PRIN"){
+				if(_usuarioBean.isAdm || _usuarioBean.siglaPerfil == 'OPER'){
+					filialCbx.visible = true;
+				}
+				for(var i:int = 0; i < _usuarioBean.sistemaList.length; i++){
+					var sis:SistemaBean = SistemaBean(_usuarioBean.sistemaList.getItemAt(i));
+					if(sis.sigla == 'PMP'){
+						if(sis.perfilBean.sigla == 'ADM'){
+							menuBarCollection = new XMLListCollection(menubarXML);
+						} else	if(sis.perfilBean.sigla == 'CON'){
+							menuBarCollection = new XMLListCollection(menubarConsultorXML);
+						}else	if(sis.perfilBean.sigla == 'OPER'){
+							menuBarCollection = new XMLListCollection(menubarOperacionalXML);
+						}else	if(sis.perfilBean.sigla == 'AVM'){
+							menuBarCollection = new XMLListCollection(menubarAvmXML);
+						}
+					}
+				}
+			}else if(opcao == "SINC_JOB"){
+				var sinc:SincronizarStanderJob = new SincronizarStanderJob();
+				pmpCanvas.addChild(sinc);
+				sinc.init(urlLogin);			
+			}else if(opcao == "CAD_TRA"){
+				var tra:CadastrarTracaoAC = new CadastrarTracaoAC();
+				pmpCanvas.addChild(tra);
+				tra.init(urlLogin);			
+			}else if(opcao == "COF_TRA"){
+				var coTra:ConfigurarTracao = new ConfigurarTracao();
+				pmpCanvas.addChild(coTra);
+				coTra.init(urlLogin);			
+			}else if(opcao == "DASH_OPER"){
+				var dOp:DashboardOperacional = new DashboardOperacional();
+				pmpCanvas.addChild(dOp);
+				dOp.init(urlLogin);			
+			}else if(opcao == "CAD_CUST"){
+				var cust:CadastrarCustomizacao = new CadastrarCustomizacao();
+				pmpCanvas.addChild(cust);
+				cust.init(urlLogin);			
+			}else if(opcao == "CAD_CONF_CUST"){
+				var confiCust:ConfigurarCustomizacao = new ConfigurarCustomizacao();
+				pmpCanvas.addChild(confiCust);
+				confiCust.init(urlLogin);			
+			}else if(opcao == "CAD_PES"){
+				var contEspecial:ContratoEspecial = new ContratoEspecial();
+				pmpCanvas.addChild(contEspecial);
+				contEspecial.init(urlLogin,_usuarioBean);			
+			}else if(opcao == "DASH_PROD"){
+				var dPd:DashboardProdutividade = new DashboardProdutividade();
+				pmpCanvas.addChild(dPd);
+				dPd.init(urlLogin);			
+			}else if(opcao == "DASH_CONT"){
+				var dCon:DashboardContrato = new DashboardContrato();
+				pmpCanvas.addChild(dCon);
+				dCon.init(urlLogin);			
+			}else if(opcao == "RPMO"){
+				var RPMo:RelatorioCustoPecasEMo = new RelatorioCustoPecasEMo;
+				pmpCanvas.addChild(RPMo);
+				RPMo.init(urlLogin,_usuarioBean);			
+			}else if(opcao == "REBL"){
+				var rebl:RelatorioBacklog = new RelatorioBacklog;
+				pmpCanvas.addChild(rebl);
+				rebl.init(urlLogin,_usuarioBean);			
+			}else if(opcao == "EXC_AG"){
+				var excAg:ExcluirOsNaoRealizada = new ExcluirOsNaoRealizada;
+				pmpCanvas.addChild(excAg);
+				excAg.init(urlLogin,_usuarioBean);			
+			}else if(opcao == "RMM"){
+				var rmm: ReportMediaAtendimento = new ReportMediaAtendimento;
+				pmpCanvas.addChild(rmm);
+				rmm.init(urlLogin,_usuarioBean);			
+			}else if(opcao == "PR"){
+				var pr: PularRevisao = new PularRevisao;
+				pmpCanvas.addChild(pr);
+				pr.init(urlLogin);			
+//			}else if(opcao == "CON_MON"){
+//				var cm: ContratoMonitoramentoPuroPL = new ContratoMonitoramentoPuroPL;
+//				pmpCanvas.addChild(cm);
+//				cm.init(urlLogin,_usuarioBean);			
+			}else if(opcao == "CAD_COMPC"){
+				var cc: CadastrarCompCode = new CadastrarCompCode;
+				pmpCanvas.addChild(cc);
+				cc.init(urlLogin);			
+			}else if(opcao == "VIS_MIN"){
+				var vismin:VisualizarMinuta = new VisualizarMinuta;
+				pmpCanvas.addChild(vismin);
+				vismin.init(urlLogin, _usuarioBean);			
+			}else if(opcao == "RCF"){
+				var rcf:ContratosFinalizadosSemRenovacao = new ContratosFinalizadosSemRenovacao;
+				pmpCanvas.addChild(rcf);
+				rcf.init(urlLogin, _usuarioBean);			
+			}else if(opcao == "PPM"){
+				var ppm:RelatorioIntervencao = new RelatorioIntervencao;
+				pmpCanvas.addChild(ppm);
+				ppm.init(urlLogin);			
+			}else if(opcao == "DESC_MULT_VAC"){
+				var dmv:DescontoMultiVac = new DescontoMultiVac;
+				pmpCanvas.addChild(dmv);
+				dmv.init(urlLogin);			
+			}else if(opcao == "DASH_MAQ"){
+				var dMaq:DashboardMaquinas = new DashboardMaquinas();
+				pmpCanvas.addChild(dMaq);
+				dMaq.init(urlLogin);
+			}else if(opcao == "RELV"){
+				var relV:RelacaoVeiculos = new RelacaoVeiculos();
+				pmpCanvas.addChild(relV);
+				relV.init(urlLogin);
+			}else if(opcao == "PROMO"){
+				var promo:ContratoPromocao = new ContratoPromocao();
+				pmpCanvas.addChild(promo);
+				promo.init(urlLogin,_usuarioBean);
+			}else if(opcao == "CAD_CON_SPOT"){ 
+				var conSpot:ContratoSpot = new ContratoSpot();
+				pmpCanvas.addChild(conSpot);
+				conSpot.init(urlLogin, _usuarioBean);
+			}else if(opcao == "MP"){ 
+				var mp:PropostaManutencaoPreventiva = new PropostaManutencaoPreventiva();
+				pmpCanvas.addChild(mp);
+				mp.init(urlLogin);
+			}else if (opcao == "APROV"){
+				var aprov:CreditoFinanceiro = new CreditoFinanceiro();
+				pmpCanvas.addChild(aprov);
+				aprov.init(urlLogin, _usuarioBean);
+			}else if (opcao == "CLI_OS"){
+				var cliOs:CreditoFinanceiro = new CreditoFinanceiro();
+				pmpCanvas.addChild(cliOs);
+				cliOs.init(urlLogin, _usuarioBean);
+			}else if(opcao == "AT_HR"){
+				var atHr: AtualizarHorimetroXLS = new AtualizarHorimetroXLS();
+				pmpCanvas.addChild(atHr);
+				atHr.init(urlLogin);	
+			}else if(opcao == "EDI_FILIAL"){
+				var ediFi: EditarFilial = new EditarFilial();
+				pmpCanvas.addChild(ediFi);
+				ediFi.init(urlLogin);	
+			}else if(opcao == "CAD_DESC_PDP_SPOT"){
+				var cadDescPdpSpot: CadastrarDescontoPdpSpot = new CadastrarDescontoPdpSpot();
+				pmpCanvas.addChild(cadDescPdpSpot);
+				cadDescPdpSpot.init(urlLogin);	
+			}
+			
+			
+			
+			
+			
+			
+//			if(opcao == "CADEMP"){ 
+//				osCanvas.addChild(new Empresa());
+//			} else if(opcao == "CADFRM") {
+//				osCanvas.addChild(new Formacao());
+//			} else if(opcao == "CADCMP") {
+//				osCanvas.addChild(new Componente());
+//			} else if(opcao == "CADCRG") {
+//				osCanvas.addChild(new Cargo());
+//			} else if(opcao == "CADTRN") {
+//				osCanvas.addChild(new Treinamento());
+//			} else if (opcao == "CADDESCTRN") {
+//				osCanvas.addChild(new DescricaoTreinamento());
+//			} else if (opcao == "CADCTG") {
+//				osCanvas.addChild(new Categoria());
+//			} else if (opcao == "CADLRV") {
+//				osCanvas.addChild(new LocalRevenda());
+//			} else if (opcao == "CADREV") {
+//				osCanvas.addChild(new Revenda());
+//			} else if (opcao == "CADCON") {
+//				osCanvas.addChild(new Conhecimento());
+//			} else if (opcao == "CADSTR") {
+//				osCanvas.addChild(new Setor());
+//			} else if (opcao == "CADBIB") {
+//				osCanvas.addChild(new Bibliografia());
+//			}
+			
+		} 
+		
+		private function onResultFindUrlMapa(event:ResultEvent):void{
+			urlMapa = String(event.result);
+		}
+		
+		private function onResultFindAllFilial(event:ResultEvent):void{
+			filialCbx.dataProvider = ArrayCollection(event.result);
+			this.selectedFilialCbx();
+		} 
+		
+		private function selectedFilialCbx():void{
+			var filialList:ArrayCollection = ArrayCollection(filialCbx.dataProvider);
+			for(var i:int=0; i < filialList.length; i++){
+				var f:FilialBean = FilialBean(filialList.getItemAt(i));
+				if(_usuarioBean != null && Number(_usuarioBean.filial) == f.stno){
+					filialCbx.selectedIndex = i;
+					break;
+				}
+			}
+		}
+		
+		private function selectNewFilial():void{
+			serviceController.changeUser(FilialBean(filialCbx.selectedItem).stno);
+			_usuarioBean.filial = String(FilialBean(filialCbx.selectedItem).stno);
+		}
+		
+			
+	]]>
+	
+	</mx:Script>
+	
+		<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+			<mx:method name="getUrlLogintServer" result="onResultGetUrlLogintServer(event);ProgressBarHelper.removeProgressBar()" />
+			<mx:method name="verificarLogin" result="onResultVerificarLogin(event);ProgressBarHelper.removeProgressBar()" />
+			<mx:method name="invalidarSessao" result="onResultInvalidarSessao(event);ProgressBarHelper.removeProgressBar()" />
+			<mx:method name="getUrlReportServer" result="onResultGetUrlReportServer(event);ProgressBarHelper.removeProgressBar()" />
+			<mx:method name="findAllFilial" result="onResultFindAllFilial(event);ProgressBarHelper.removeProgressBar()" />
+			<mx:method name="findUrlMapa" result="onResultFindUrlMapa(event);ProgressBarHelper.removeProgressBar()" />
+			<mx:method name="changeUser" result="ProgressBarHelper.removeProgressBar()" />
+		</mx:RemoteObject>
+		
+		<mx:Resize id="resizeEffect"   duration="1000"/>
+	
+	<mx:ApplicationControlBar x="0" y="0" width="100%" height="50">
+		<mx:Image width="140" source="img/logo.png" height="43"/>
+		<mx:Label text="9.7"/>
+		<mx:HBox width="65%" horizontalAlign="right" verticalAlign="middle">
+			<mx:Label text="" id="usuarioLogadoText" height="32" paddingTop="10"/>
+			<mx:Image source="img/password.png" visible="false" buttonMode="true" id="alterSenha" toolTip="Alterar Senha" click="popupAlterPassword()" height="32" width="32"/>
+			<mx:Image source="img/menu.png" visible="true" buttonMode="true" id="menu" toolTip="Painel de Controle" click="invalidarSessao('MENU')" height="32" width="32"/>
+			<mx:Image source="img/logout.png" visible="true" buttonMode="true" id="logout" toolTip="Sair do Sistema" click="invalidarSessao('SAIR')" height="32" width="32"/>
+		</mx:HBox>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="58" width="100%">
+		<mx:MenuBar labelField="@label"  
+					dataProvider="{menuBarCollection}"
+					
+					itemClick="itemClickHandler(event);" 
+					x="10" y="58"/>
+		<mx:ComboBox editable="true" id="filialCbx" labelField="stnm" prompt="Selecione" change="selectNewFilial()" visible="false"></mx:ComboBox>
+	</mx:HBox>
+	<mx:Canvas width="100%" height="100%"   resizeEffect="resizeEffect" id="pmpCanvas" x="0" y="85"/>
+</mx:Application>

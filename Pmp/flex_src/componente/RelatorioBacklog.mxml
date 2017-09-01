@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.FilialBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var myValidators: Array;
+			private var urlLogin:String;
+			
+			private var comboFilial: ArrayCollection = new ArrayCollection();		
+			
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				this.urlLogin = urlLogin;
+				serviceController.getUrlReport();
+			}
+			public function gerarReport():void{
+				var uv:URLVariables = new URLVariables();
+				/* if(idFilial.selectedItem == null) {
+					uv.idFilial = -1;
+				} else {
+					uv.idFilial = idFilial.selectedItem.stno;
+				} */
+				generatePDF(uv);
+			}
+			
+			private var urlReport:String = "";
+			public function generatePDF(uv:URLVariables):void
+			{				
+				var url:URLRequest = new URLRequest(urlReport+"/ReportBacklog");
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+	
+		]]>
+	</mx:Script>
+	
+	<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+		<mx:Label text="Relatorio de Fluxo da OS" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	
+	<mx:VBox  width="100%" y="60" horizontalAlign="center" height="103">
+<!--		<mx:FormItem label="Filial" required="true" id="boxFilial" visible="true">
+			<mx:ComboBox dataProvider="{comboFilial}" labelField="stnm" id="idFilial" prompt="Todas" selectedIndex="-1"></mx:ComboBox>
+		</mx:FormItem>-->	
+		<mx:Button label="Gerar" click="gerarReport()"/>
+	</mx:VBox>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>	
+</mx:Canvas>

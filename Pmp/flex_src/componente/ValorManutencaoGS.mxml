@@ -1,0 +1,701 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" horizontalScrollPolicy="off" verticalScrollPolicy="off" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.BusinessGroupBean;
+			import bean.ConfigManutencaoHorasBean;
+			import bean.ContratoComercialBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.PecaBean;
+			import bean.PrefixoBean;
+			import bean.RangerBean;
+			import bean.UsuarioBean;
+			import bean.ValorDescontoBean;
+			import bean.ValorManutencaoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var urlReport:String = "";
+			private var _usuarioBean:UsuarioBean;
+			[Bindable] 
+			private var contrato:ContratoComercialBean = new ContratoComercialBean();
+			private var manut:ValorManutencaoBean = new ValorManutencaoBean();
+			private var peca:PecaBean = new PecaBean();
+			private var valorDesconto:ValorDescontoBean = new ValorDescontoBean();
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{
+				this._usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin;				
+				
+				//serviceController.findAllFamilia();
+				serviceController.findAllFamiliaGerador('N', "GERADOR");
+
+				manutHoras.addEventListener("DESMARCARTODASMANUTENCOES", desmarcarTodasManutencoes);
+				gridManutencao.addEventListener("EXCLUIRPECA", excluirPeca);
+			}
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();	
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				modeloCbx.selectedIndex = -1;
+				prefixoCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				range.dataProvider = null;
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				comboModelo.addAll(ArrayCollection(event.result));
+				this.limparCamposEditaveis("S");
+				serviceController.findAllBusinessGroupContrato();
+			}
+			[Bindable]
+			private var comboPrefixo:ArrayCollection = new ArrayCollection();	
+			private function onResultFindAllPrefixos(event:ResultEvent):void{
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				comboPrefixo.addAll(ArrayCollection(event.result));
+				prefixoCbx.dataProvider = comboPrefixo;
+			}
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function onResultFindAllFamiliaGerador(event:ResultEvent):void{
+				familiaCbx.dataProvider = ArrayCollection(event.result);
+			}
+			
+			[Bindable]
+			private var comboBusinessGroup:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllBusinessGroup(event:ResultEvent):void{
+				if(comboBusinessGroup.length > 0){
+					comboBusinessGroup.removeAll();
+				}
+				comboBusinessGroup.addAll(ArrayCollection(event.result));
+				bgCbx.dataProvider = comboBusinessGroup;
+			}
+			
+			private function onResultFindAllRanger(event:ResultEvent):void{
+				range.dataProvider = ArrayCollection(event.result);
+			}
+
+			private function onResultFindAllManutencaoHoras(event:ResultEvent):void{
+				manutHoras.dataProvider = ArrayCollection(event.result);
+			}
+			
+	
+			private function onResultGetUrlReportServer(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+
+			
+			private function removePopUpPreco(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private var valorContrato:ValorContrato = new ValorContrato();
+			private function removePopUpValorContrato(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			
+			private function setContrato():void{
+			
+				modeloCbx.selectedIndex = -1;
+				prefixoCbx.selectedIndex = -1;
+				manutHoras.enabled = false;
+				manutHoras.dataProvider = null;
+				manutHoras.dataProvider = contrato.configManutencaoHorasBeanList;
+				range.dataProvider = null;
+				range.dataProvider = contrato.rangerList;
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				modeloCbx.dataProvider = null;
+				prefixoCbx.dataProvider = null;
+				comboModelo.addAll(contrato.modeloList);
+				modeloCbx.dataProvider = comboModelo;
+				comboPrefixo.addAll(contrato.prefixoList);
+				prefixoCbx.dataProvider = comboPrefixo;
+				numeroSerieText.text = contrato.serie;				
+				var familiaList:ArrayCollection = ArrayCollection(familiaCbx.dataProvider);
+				for(var i:int=0; i < familiaList.length; i++){
+					var familia:FamiliaBean = FamiliaBean(familiaList.getItemAt(i));
+					if(contrato.familia == familia.descricao){
+						familiaCbx.selectedIndex = i;
+						break;
+					}
+				}			
+				this.selectedModelo();
+				this.selectedPrefixo();
+				this.selectedBusinessGroup();				
+				this.selectedRanger();
+				
+			}
+			private function desmarcarTodasManutencoes(evt: Event): void{
+				
+				var config:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(manutHoras.selectedItem);
+				if(!config.isSelected){
+					gridManutencao.dataProvider = null;
+					return;
+				}
+				
+				var index:int = 0;
+				if(manutHoras.selectedItem != null){
+					index = manutHoras.selectedIndex;
+				}
+				
+				var horasList: ArrayCollection= ArrayCollection(manutHoras.dataProvider);
+				var result:ArrayCollection = new ArrayCollection();
+				for(var i:int = 0; i < horasList.length; i++){
+					var configList:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					configList.isSelected = false;
+					if(configList.horasManutencao == config.horasManutencao){
+						configList.isSelected = true;
+					} 
+					result.addItem(configList);
+				}
+				manutHoras.dataProvider = null;
+				
+				manutHoras.dataProvider = result;
+				manutHoras.selectedIndex = index;
+				manutHoras.validateNow();
+				manutHoras.scrollToIndex(index);                
+				this.limparCamposEditaveis("S");
+				this.buscarPecas();
+			}
+			
+			private function excluirPeca(event:Event):void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					peca = PecaBean(gridManutencao.selectedItem);
+					serviceController.removerPeca(peca);	
+				}
+			}
+			
+			private function onResultRemoverPeca(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					Alert.show("Peça excluída com sucesso.","Alerta");
+					ArrayCollection(gridManutencao.dataProvider).removeItemAt(gridManutencao.selectedIndex);
+					limparCamposEditaveis("N");
+					//serviceController.findAllModelos(modeloPesquisa.text);
+				}else{
+					Alert.show("Ocorreu um erro ao excluir a Peça!","Alerta!");
+				}
+			}
+			
+			private function buscarPecas(): void{
+				manut.configManutencaoHorasBeanList = this.findStandardJob();
+
+				manut.beginRanger = RangerBean(range.selectedItem).beginRanger;
+				manut.endRanger = RangerBean(range.selectedItem).endRanger;
+				manut.prefixo = PrefixoBean(prefixoCbx.selectedItem).descricao;
+				serviceController.findAllPecas(manut);
+			}
+			
+			private function onResultFindAllPecas(event:ResultEvent):void{
+				
+				gridManutencao.dataProvider = ArrayCollection(event.result);
+				manut.cptcd = ConfigManutencaoHorasBean(manutHoras.selectedItem).standardJob;
+				manut.bgrp = BusinessGroupBean(bgCbx.selectedItem).descricao;
+				manut.modelo = ModeloBean(modeloCbx.selectedItem).descricao;				
+				
+			}            
+			
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:ModeloBean = ModeloBean(modeloList.getItemAt(i));
+					if(contrato.modelo == modelo.descricao){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedPrefixo():void{
+				for(var i:int=0; i < comboPrefixo.length; i++){
+					var prefixo:PrefixoBean = PrefixoBean(comboPrefixo.getItemAt(i));
+					if(contrato.prefixo == prefixo.descricao){
+						prefixoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedBusinessGroup():void{
+				var bgList:ArrayCollection = ArrayCollection(bgCbx.dataProvider);
+				for(var i:int=0; i < bgList.length; i++){
+					var bg:BusinessGroupBean = BusinessGroupBean(bgList.getItemAt(i));
+					if('PM' == bg.descricao){
+						bgCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedBusinessSev():void{
+				var bgList:ArrayCollection = ArrayCollection(bgCbx.dataProvider);
+				for(var i:int=0; i < bgList.length; i++){
+					var bg:BusinessGroupBean = BusinessGroupBean(bgList.getItemAt(i));
+					if('SEV' == bg.descricao){
+						bgCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+			
+			private function selectedRanger():void{
+				var rangerList:ArrayCollection = ArrayCollection(range.dataProvider);
+				for(var i:int=0; i < rangerList.length; i++){
+					var rg:RangerBean = RangerBean(rangerList.getItemAt(i));
+					if(contrato.beginRanger == rg.beginRanger && contrato.endRanger == rg.endRanger){
+						range.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+			
+			
+			
+
+			private function validateHorasManut():Boolean{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var totalHoras:Number = 0;
+				var intervalo:Number = 0;
+				for(var i:int = 0; i < horasList.length; i++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					if(i == 0){
+						var beanHorasProximo:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i+1));
+						if(beanHoras.horas < beanHorasProximo.horas){
+							intervalo = beanHorasProximo.horas - beanHoras.horas;
+						}else{
+							intervalo = beanHorasProximo.horas;
+						}
+					}else{
+						var beanHorasUltima:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasList.length - 1));
+						var beanHorasPenultima:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasList.length - 2));
+						intervalo = beanHorasUltima.horas - beanHorasPenultima.horas;
+					}
+					if(beanHoras.isSelected == true){
+						totalHoras+=intervalo;
+					}
+				}
+				if(totalHoras < 1000){
+					return false;
+				}
+				return true;
+			}
+
+			
+			
+			
+			private function validarHorimetroIntervaloHoras():Boolean{
+
+				return true;
+
+				
+			}
+
+			private function findStandardJob():ArrayCollection{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var standardJobList:ArrayCollection = new ArrayCollection();
+				for(var i:int = 0; i < horasList.length; i++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					if(beanHoras.isSelected == true){
+						standardJobList.addItem(beanHoras);
+					}
+				}
+				return standardJobList;
+			}
+			
+			private function findPecas():ArrayCollection {
+				var pecas: ArrayCollection = new ArrayCollection();
+				
+				for(var i:int = 0; i < ArrayCollection(gridManutencao.dataProvider).length; i++){
+					var beanPeca: PecaBean = PecaBean(ArrayCollection(gridManutencao.dataProvider).getItemAt(i));
+					
+					pecas.addItem(beanPeca);
+				}
+				return pecas;
+			}  
+			
+			private function savePecasManutencao():void {
+				
+				myValidators = new Array();
+				if(bgCbx.selectedItem == null){
+					Alert.show("Selecione um Business Group!", "Alerta");
+					return;
+				}
+
+					
+					myValidators.push(campofamiliaCbx);
+					myValidators.push(campoModeloCbx);
+					myValidators.push(campoPrefixoCbx);
+					myValidators.push(campoBgCbx);
+					myValidators.push(campoRanger);
+					myValidators.push(campoDescricao);
+					myValidators.push(campoNumeroSerie);
+					myValidators.push(campoPrecoCusto);
+					myValidators.push(campoPrecoCliente);
+					myValidators.push(campoQtdPecas);					
+					myValidators.push(campoPartNumber);
+					myValidators.push(campoCompCode);
+					myValidators.push(campoSOS);
+					
+					
+					
+
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {
+
+						peca.bgrp = BusinessGroupBean(bgCbx.selectedItem).descricao;
+						peca.beqmsn = numeroSerieText.text.toUpperCase();
+						peca.uncs = precoCustoText.text;
+						peca.unls = precoClienteText.text;						
+						peca.dlrqty = Number(qtdPecasText.text);
+						peca.pano20 = partNumberText.text.toUpperCase();
+						peca.bectyc = descontoPDTText.text;
+						peca.cptcd = compCodeText.text.toUpperCase();
+						peca.ds18 = descricaoText.text.toUpperCase();
+						peca.sos = sosText.text.toUpperCase();
+						serviceController.saveOrUpdate(peca);
+			
+
+					
+				} else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			
+			private function onResultSaveOrUpdate (event:ResultEvent):void{
+				if(event.result == true){
+					buscarPecas();
+					Alert.show("Operação realizada com sucesso!", "Alerta!");	
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação!", "Alerta!");
+				}
+			} 
+			
+			private function limparCampos():void{
+				//precoManutImg.visible = false;				
+				contrato = new ContratoComercialBean();			
+				bgCbx.selectedIndex = 0;				
+				numeroSerieText.text = "";
+				modeloCbx.selectedIndex = -1;//				
+				familiaCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;				
+				comboPrefixo.removeAll();
+				prefixoCbx.dataProvider = null;
+				range.dataProvider = null;
+				contrato.endRanger = "";
+				numeroSerieText.text = "";
+				precoCustoText.text = "";
+				precoClienteText.text = "";
+				qtdPecasText.text = "";
+				partNumberText.text = "";
+				descontoPDTText.text = "";
+				compCodeText.text = "";
+				sosText.text = "";
+				descricaoText.text = "";
+				//precoSemDecontoText.text = "";
+				//precoComDecontoText.text = "";
+				//descontoMedioText.text = "";
+				gridManutencao.dataProvider = null;
+				partNumberText.enabled = true;
+				compCodeText.enabled = true;
+				precoCustoText.enabled = true;
+				numeroSerieText.enabled = true;
+				
+			}
+			
+			private function limparCamposEditaveis(camposEditaveis:String):void{
+				var peca:PecaBean = new PecaBean();
+				numeroSerieText.text = "";
+				precoCustoText.text = "";
+				precoClienteText.text = "";
+				qtdPecasText.text = "";
+				partNumberText.text = "";
+				descontoPDTText.text = "";
+				compCodeText.text = "";
+				descricaoText.text = "";
+				sosText.text = "000";
+				//precoSemDecontoText.text = "";
+				//precoComDecontoText.text = "";
+				//descontoMedioText.text = "";
+				if(camposEditaveis == "S"){
+					gridManutencao.dataProvider = null;					
+				}
+				partNumberText.enabled = true;
+				compCodeText.enabled = true;
+				precoCustoText.enabled = true;
+				numeroSerieText.enabled = true;
+				descricaoText.enabled = true;
+				//gridManutencao.dataProvider = peca;
+				
+			}
+			
+			private function onChangeModelo():void{
+				//bgCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				range.dataProvider = null;
+				this.limparCamposEditaveis("S");
+				serviceController.findAllPrefixosContrato(ModeloBean(modeloCbx.selectedItem).descricao);
+			}
+			private function onChangePrefixo():void{
+				//bgCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				this.limparCamposEditaveis("S");
+				serviceController.findAllRangerContrato(ModeloBean(modeloCbx.selectedItem).descricao, PrefixoBean(prefixoCbx.selectedItem).descricao);
+			}
+			
+
+			private function popularManutHoras():void{
+				if(bgCbx.selectedItem != null){
+					serviceController.findAllManutencaoHoras(ModeloBean(modeloCbx.selectedItem).descricao, PrefixoBean(prefixoCbx.selectedItem).descricao, RangerBean(range.selectedItem).beginRanger, RangerBean(range.selectedItem).endRanger, BusinessGroupBean(bgCbx.selectedItem).descricao);
+				}else{
+					range.selectedIndex = -1;
+					Alert.show("Por favor selecione um Business Group!", "Alerta");
+				}
+				this.limparCamposEditaveis("S");
+			}
+
+			private function popularManutMeses():void{
+				if(bgCbx.selectedItem != null){
+					serviceController.findAllManutencaoMeses(ModeloBean(modeloCbx.selectedItem).descricao, PrefixoBean(prefixoCbx.selectedItem).descricao, RangerBean(range.selectedItem).beginRanger, RangerBean(range.selectedItem).endRanger, BusinessGroupBean(bgCbx.selectedItem).descricao);
+				}else{
+					range.selectedIndex = -1;
+					Alert.show("Por favor selecione um Business Group!", "Alerta");
+				}
+			}
+			
+			protected function gridManutencao_changeHandler():void{
+				if(gridManutencao.selectedItem != null){					
+						peca = PecaBean(gridManutencao.selectedItem);
+						descricaoText.text = peca.ds18;
+						numeroSerieText.text = peca.beqmsn;
+						precoCustoText.text = peca.uncs;
+						precoClienteText.text = peca.unls;
+						qtdPecasText.text = peca.dlrqty.toString();
+						partNumberText.text = peca.pano20;
+						descontoPDTText.text = peca.bectyc;
+						compCodeText.text = peca.cptcd;
+						if(peca.sos == "" || peca.sos == null || peca.sos == "null"){
+						sosText.text = "000";	
+						}else{
+						sosText.text = peca.sos;
+						}
+						partNumberText.enabled = false;
+						compCodeText.enabled = false;
+						precoCustoText.enabled = false;
+						numeroSerieText.enabled = false;
+						descricaoText.enabled = false;
+						this.selectedModelo();
+					
+				}
+			}	
+
+			private function changeComboBg():void{
+				if(BusinessGroupBean(bgCbx.selectedItem).descricao == 'KIT3' || BusinessGroupBean(bgCbx.selectedItem).descricao == 'KIT2'){
+					manutHoras.enabled = false;
+
+				}else{
+					manutHoras.enabled = true;
+
+				}
+				this.limparCamposEditaveis("S");
+			}
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllModelosContrato('N', FamiliaBean(familiaCbx.selectedItem).id, "N");
+			}
+			
+			private function onResultFindAllManutencaoMeses(event:ResultEvent):void{
+				manutHoras.dataProvider = ArrayCollection(event.result);
+			}
+			
+
+		]]>
+	</mx:Script>	
+	
+	
+	<mx:NumberValidator id="campofamiliaCbx" source="{familiaCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoPrefixoCbx" source="{prefixoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoBgCbx" source="{bgCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoRanger" source="{range}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo  obrigatório!" required="true" source="{descricaoText}" property="text" />
+	<mx:StringValidator id="campoNumeroSerie" requiredFieldError="Este campo  obrigatório!" required="true" source="{numeroSerieText}" property="text" />
+	<mx:StringValidator id="campoPrecoCusto" requiredFieldError="Este campo  obrigatório!" required="true" source="{precoCustoText}" property="text" />
+	<mx:StringValidator id="campoPrecoCliente" requiredFieldError="Este campo  obrigatório!" required="true" source="{precoClienteText}" property="text" />
+	<mx:StringValidator id="campoQtdPecas" requiredFieldError="Este campo  obrigatório!" required="true" source="{qtdPecasText}" property="text" />
+	<mx:StringValidator id="campoPartNumber" requiredFieldError="Este campo  obrigatório!" required="true" source="{partNumberText}" property="text" />
+	<mx:StringValidator id="campoCompCode" requiredFieldError="Este campo  obrigatório!" required="true" source="{compCodeText}" property="text" />
+	<mx:StringValidator id="campoSOS" requiredFieldError="Este campo  obrigatório!" required="true" source="{sosText}" property="text" />
+		
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelosContrato" result="onResultFindAllModelos(event)" />
+		<mx:method name="findAllPrefixosContrato" result="onResultFindAllPrefixos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllBusinessGroupContrato" result="onResultFindAllBusinessGroup(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllRangerContrato" result="onResultFindAllRanger(event);ProgressBarHelper.removeProgressBar()" />
+		
+		<mx:method name="findAllPecas" result="onResultFindAllPecas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerPeca" result="onResultRemoverPeca(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllManutencaoHoras" result="onResultFindAllManutencaoHoras(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />		
+		<mx:method name="getUrlReportServer" result="onResultGetUrlReportServer(event);ProgressBarHelper.removeProgressBar()" />		
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFamiliaGerador" result="onResultFindAllFamiliaGerador(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllManutencaoMeses" result="onResultFindAllManutencaoMeses(event);ProgressBarHelper.removeProgressBar()" />
+		
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="31" width="100%" height="286" horizontalScrollPolicy="off" verticalScrollPolicy="off" horizontalAlign="center">
+		<mx:Form height="265" >
+
+			<mx:FormItem label="Família" required="true" >
+				<mx:ComboBox x="48" y="1" id="familiaCbx"  labelField="descricao"   prompt="Selecione" selectedIndex="-1" change="familiaCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox id="modeloCbx" dataProvider="{comboModelo}" labelField="descricao" change="onChangeModelo()"  prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Prefixo" required="true">
+				<mx:ComboBox x="53" y="3" id="prefixoCbx" dataProvider="{comboPrefixo}" change="onChangePrefixo()" labelField="descricao"  prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Business Group" required="true">
+				<mx:ComboBox x="54" y="-1" id="bgCbx" labelField="descricao" dataProvider="{comboBusinessGroup}" prompt="Selecione" enabled="true" change="range.selectedIndex = -1; manutHoras.dataProvider = null; changeComboBg();" />
+			</mx:FormItem>
+			<mx:FormItem label="Ranger" required="true" width="280" height="94">
+				<mx:List height="84" id="range" labelField="descricao"  change="popularManutMeses()" width="100%"></mx:List>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form height="280">
+			
+			<mx:FormItem label="Manutenções">
+				<mx:List id="manutHoras" width="194" labelField="horasManutencao" alternatingItemColors="[#EEEEEE, white]" rowCount="5" toolTip="Selecione no mínimo um ciclo de 1000 horas">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:CheckBox selectedField="isSelected"
+										 change="onChange(event);" selected="{data.isSelected}" click="onClick(event);">
+								<mx:Script>
+									<![CDATA[
+										private function onChange(evt:Event):void {
+											data.isSelected = this.selected;
+											dispatchEvent(new Event('DESMARCARTODASMANUTENCOES', true));
+										}
+										public function onClick(evt: Event): void {
+										}
+									]]>
+								</mx:Script>
+							</mx:CheckBox>
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:List>
+			</mx:FormItem>
+			<mx:FormItem label="Descrição" required="true" width="282">
+				<mx:TextInput id="descricaoText" width="151" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Número de Série" required="true" width="282">
+				<mx:TextInput id="numeroSerieText" width="151" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Preço de Custo" required="true" width="282">
+				<control:DecimalInput editable="true"  id="precoCustoText" width="93" maxChars="6"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>	
+			<mx:FormItem label="Preço do Cliente" required="true" width="282">
+				<control:DecimalInput editable="true"  id="precoClienteText" width="93" maxChars="6"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form height="265" width="330">
+			<mx:FormItem label="Quantidade de Peças" required="true" width="289">
+				<mx:TextInput id="qtdPecasText"  restrict="0-9" width="140" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Part-Number" required="true" width="289">
+				<mx:TextInput id="partNumberText" width="140" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Desconto PDT" width="289">
+				<mx:TextInput id="descontoPDTText" width="140" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Componente Code" required="true" width="289">
+				<mx:TextInput id="compCodeText" width="140" maxChars="8"/>
+			</mx:FormItem>
+			<mx:FormItem label="SOS" required="true" width="289">
+				<mx:TextInput id="sosText" width="140" maxChars="10"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Preço sem Desconto" required="true" width="289">
+				<mx:TextInput id="precoSemDecontoText" enabled="false" width="140" maxChars="10"/>
+			</mx:FormItem>
+			<mx:FormItem label="Preço com Desconto" required="true" width="289">
+				<mx:TextInput id="precoComDecontoText" enabled="false" width="140" maxChars="10"/>
+			</mx:FormItem>
+			<mx:FormItem label="Desconto Médio" required="true" width="289">
+				<mx:TextInput id="descontoMedioText" enabled="false" width="140" maxChars="10"/>
+			</mx:FormItem-->
+		</mx:Form>
+	</mx:HBox>
+	<mx:ApplicationControlBar x="0" y="1"  width="100%" horizontalAlign="center">
+		<mx:Label text="Valor da Manutenção" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:VBox x="0" y="325" width="100%" height="30" horizontalScrollPolicy="off" verticalScrollPolicy="off">
+		<mx:HBox paddingLeft="20" width="100%" verticalScrollPolicy="off" horizontalScrollPolicy="off">
+			<mx:Grid width="100%">
+				<mx:GridRow width="100%" height="100%">
+					<mx:GridItem width="100%" height="100%" verticalAlign="top" horizontalAlign="center" paddingLeft="50">
+						<mx:Button label="Salvar" id="salvarContrato" click="savePecasManutencao()" />
+						<mx:Button label="Novo" click="limparCamposEditaveis('N')"/>
+						
+						
+					</mx:GridItem>
+				</mx:GridRow>
+			</mx:Grid>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:DataGrid x="0" y="363" width="100%" height="259" id="gridManutencao" doubleClickEnabled="true" doubleClick="gridManutencao_changeHandler()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="DESCRICAO" dataField="ds18"/>
+			<mx:DataGridColumn headerText="BUSINESS GROUP" dataField="bgrp"/>
+			<mx:DataGridColumn headerText="NUMERO DE SERIE" dataField="beqmsn"/>
+			<mx:DataGridColumn headerText="PREÇO DE CUSTO" dataField="uncs"/>
+			<mx:DataGridColumn headerText="PRECO DO CLIENTE" dataField="unls"/>
+			<mx:DataGridColumn headerText="QUANTIDADE PEÇAS" dataField="dlrqty"/>
+			<mx:DataGridColumn headerText="PART-NUMBER" dataField="pano20"/>
+			<mx:DataGridColumn headerText="DESCONTO PDT" dataField="bectyc"/>
+			<mx:DataGridColumn headerText="COMPONENTE CODE" dataField="cptcd"/>
+			<mx:DataGridColumn headerText="SOS" dataField="sos"/>
+			<mx:DataGridColumn headerText="EXCLUIR" dataField="excluir">
+				<mx:itemRenderer>
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15"  click="{dispatchEvent(new Event('EXCLUIRPECA', true)) }" />
+						</mx:VBox>
+					</mx:Component> 	
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

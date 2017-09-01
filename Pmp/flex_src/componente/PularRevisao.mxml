@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ConfigManutencaoHorasBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			[Bindable]
+			private var tecnicos:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var revisoes:ArrayCollection = new ArrayCollection();
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(numContrato.text == ""){
+					Alert.show("O Número do Contrato é Obrigatório","Alerta");
+					return;
+				}
+				serviceController.findAllHorasManutencao(numContrato.text);
+				serviceController.findAllTecnicos();
+			}
+			private function onResultFindAllHorasManutencao(event:ResultEvent):void{
+				revisoes.removeAll();
+				revisoes = ArrayCollection(event.result);;
+				ArrayCollection(revisaoCbx.dataProvider).removeAll();
+				ArrayCollection(revisaoCbx.dataProvider).addAll(revisoes);
+				
+				if(ArrayCollection(event.result).length == 0){
+					Alert.show("Revisões não encontradas para o contrato informado na filial logada ou revisão com OS sem estar finalizada!","Alerta");
+				}
+			}
+			private function onResultFindAllTecnicos(event:ResultEvent):void{
+				tecnicos.removeAll();
+				tecnicos =  ArrayCollection(event.result);
+				ArrayCollection(tecnicoCbx.dataProvider).removeAll();
+				ArrayCollection(tecnicoCbx.dataProvider).addAll(tecnicos);
+			}
+			private function onResultPularRevisao(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Revisão ignorada com sucesso!","Alerta");
+					ArrayCollection(revisaoCbx.dataProvider).removeAll();
+					return;
+				}
+				Alert.show("Erro ao tentar pular revisão!","Alerta");
+			}
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if(revisaoCbx.selectedIndex == -1 || tecnicoCbx.selectedIndex == -1){
+					Alert.show("Não é permitido pular a Revisão sem uma Revisão e um Técnico!","Alerta");
+					return;
+				}
+				serviceController.pularRevisao(ConfigManutencaoHorasBean(revisaoCbx.selectedItem), UsuarioBean(tecnicoCbx.selectedItem));
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllHorasManutencao" result="onResultFindAllHorasManutencao(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllTecnicos" result="onResultFindAllTecnicos(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="pularRevisao" result="onResultPularRevisao(event);ProgressBarHelper.removeProgressBar()"/>
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Pular Revisão Contrato Pós Pago" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="37" width="100%" horizontalAlign="center">
+		<mx:Label text="Número Contrato"/>
+		<mx:TextInput id="numContrato"/>
+		<mx:Button label="Pesquisar" click="button1_clickHandler(event)"/>
+	</mx:HBox>
+	<mx:HBox x="0" y="67" width="100%" horizontalAlign="center">
+		<mx:Label text="Revisão"/>
+		<mx:ComboBox id="revisaoCbx" labelField="horasManutencao" enabled="false"></mx:ComboBox>
+	</mx:HBox>
+	<mx:HBox x="0" y="127" width="100%" horizontalAlign="center">
+		<mx:Button label="Pular Revisão"  click="button2_clickHandler(event)"/>
+	</mx:HBox>
+	<mx:HBox width="100%" horizontalAlign="center" x="0" y="97">
+		<mx:Label text="Técnico"/>
+		<mx:ComboBox id="tecnicoCbx" labelField="nome" prompt="Selecione"></mx:ComboBox>
+	</mx:HBox>
+	
+</mx:Canvas>

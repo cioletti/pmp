@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.CriticidadeManutencaoBean;
+			import bean.FamiliaBean;
+			import bean.MesesManutencaoBean;
+			import bean.ModeloBean;
+			
+			import flash.sampler.isGetterSetter;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var critManutBean:CriticidadeManutencaoBean = new CriticidadeManutencaoBean();
+			
+			public function init(urlLogin:String):void{
+				
+				myValidators = new Array();
+				myValidators.push(campoCriticidadeCbx);
+				
+				this.urlLogin = urlLogin;
+				
+			}			
+			
+			protected function salvarBtn_clickHandler(event:MouseEvent):void
+			{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {	
+					if(minPorcentagemNS.value > maxPorcentagemNS.value){
+						Alert.show("O valor mínimo da porcetagem não pode ser maior que o valor máximo.","Alerta!");
+						return;
+					}
+					
+					critManutBean.nivel = criticidadeCbx.selectedItem.valor;
+					critManutBean.minPorcetagem = minPorcentagemNS.value;
+					critManutBean.maxPorcetagem = maxPorcentagemNS.value;
+					
+					serviceController.saveOrUpdate(critManutBean);
+					
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			
+			public function onResultSaveOrUpdate(event:ResultEvent):void{
+				if(event.result != null){
+					critManutBean = CriticidadeManutencaoBean(event.result);
+					Alert.show(critManutBean.msg,"Alerta!");
+				}
+			}
+
+			protected function criticidadeCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findCriticidadeBy(criticidadeCbx.selectedItem.valor);
+			}
+
+			public function onResultFindCriticidadeBy(event:ResultEvent):void{
+				if(event.result != null){
+					critManutBean = CriticidadeManutencaoBean(event.result);
+					minPorcentagemNS.value = critManutBean.minPorcetagem;
+					maxPorcentagemNS.value = critManutBean.maxPorcetagem;
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a busca da criticidade.","Alerta!");
+				}
+			}
+		]]>
+		
+	</mx:Script>
+	
+	<mx:ArrayCollection id="nivelCriticidade">
+		<mx:Object label="Crítico" valor="CRITICO"/>
+		<mx:Object label="Criticidade Média" valor="CRITICIDADE MEDIA"/>		
+		<mx:Object label="Não Crítico" valor="NAO CRITICO"/>		
+	</mx:ArrayCollection>
+	
+	<mx:NumberValidator id="campoCriticidadeCbx" source="{criticidadeCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findCriticidadeBy" result="onResultFindCriticidadeBy(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:VBox width="100%" horizontalAlign="center" height="100%">
+		
+		<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+			<mx:Label text="Criticidade de Manutenção" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:Form> 
+			<mx:FormItem label="Criticidade" required="true" width="100%" paddingLeft="92">
+				<mx:ComboBox id="criticidadeCbx" dataProvider="{nivelCriticidade}"  selectedIndex="-1" prompt="Selecione" change="criticidadeCbx_changeHandler(event)"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:HBox horizontalAlign="center">
+				
+				<mx:FormItem label="Porcentagem do Horímetro" required="true">
+					<mx:NumericStepper id="minPorcentagemNS" minimum="0" maximum="100" maxChars="3" toolTip="Inclua a porcentagem mínima para a realizar a manutenção."/>
+				</mx:FormItem>
+				<mx:FormItem width="24" height="17">
+					<mx:Label text="á" width="10"/>
+				</mx:FormItem>
+				<mx:FormItem>					
+					<mx:NumericStepper id="maxPorcentagemNS" minimum="0" maximum="100" maxChars="3" toolTip="Inclua a porcentagem maxíma para a realizar a manutenção."/>
+				</mx:FormItem>
+				<mx:FormItem>					
+					<mx:Label text="%"/>
+				</mx:FormItem>
+				
+			</mx:HBox>
+		</mx:Form>
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Salvar" id="salvarBtn" click="salvarBtn_clickHandler(event)"/>
+		</mx:HBox>
+		<mx:HBox width="100%" height="100%">
+		</mx:HBox>
+		
+	</mx:VBox>
+	
+</mx:Canvas>

@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.OperacionalBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;			
+			
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var operacional:OperacionalBean = new OperacionalBean();
+			public var configuracaoOperacional: ConfiguracaoOperacional;
+
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.findAllOperacionalByFiltroGerador('N','N','N','N', null, null);
+				hrPendentesCbx.dataProvider = hrPendentesColl;
+				dataCbx.dataProvider = dataColl;
+			}
+			
+			private function onResultFindAllOperacionalByFiltroGerador(event:ResultEvent):void{
+				gridOP.dataProvider = ArrayCollection(event.result);
+			}		
+			
+			private function findAllOperacionalByFiltroGerador():void{	
+				var filtroUmaPendente:String = (umaPendente.selected == true)?'S':'N';
+				var filtroPendentes:String = (pendente.selected == true)?'S':'N';
+				var filtroEncerradas:String = (encerradas.selected == true)?'S':'N';
+				var filtroHoras50:String = (horas50.selected == true)?'S':'N';
+				serviceController.findAllOperacionalByFiltroGerador(filtroUmaPendente,filtroPendentes,filtroEncerradas,filtroHoras50, null, null);
+			}
+			 
+		
+			private function doubleClickGrid():void{
+				
+				if(gridOP.selectedItem != null){
+				operacional = OperacionalBean(gridOP.selectedItem);
+				
+				configuracaoOperacional = new ConfiguracaoOperacional();
+				configuracaoOperacional.recebeObjeto(operacional);
+				configuracaoOperacional.addEventListener(CloseEvent.CLOSE, removePopUp);
+				PopUpManager.addPopUp(configuracaoOperacional, this, true);
+				PopUpManager.centerPopUp(configuracaoOperacional);
+				configuracaoOperacional.init(urlLogin, OperacionalBean(gridOP.selectedItem));
+					
+				}
+
+			}
+			
+			private function removePopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllOperacionalByFiltroGerador('N','N','N','N', null, null);
+			}
+
+
+			protected function horimetroCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllOperacionalByFiltroGerador('N','N','N','N',hrPendentesCbx.selectedItem.valor, null);
+			}
+
+
+			protected function dataCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllOperacionalByFiltroGerador('N','N','N','N',null, dataCbx.selectedItem.valor);
+			}
+
+		]]>
+	</mx:Script>	
+	<mx:ArrayCollection id="hrPendentesColl">
+		<mx:Object label="Crescente" valor="C"/>
+		<mx:Object label="Decrescente" valor="D"/>
+	</mx:ArrayCollection>
+	
+	<mx:ArrayCollection id="dataColl">
+		<mx:Object label="Crescente" valor="C"/>
+		<mx:Object label="Decrescente" valor="D"/>
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllOperacionalByFiltroGerador" result="onResultFindAllOperacionalByFiltroGerador(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Operacional" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:CheckBox x="102" y="37" id="umaPendente" label="Uma Pendente" color="#FFD700" />
+	<mx:CheckBox x="10" y="37" id="pendente"  label="Pendentes" color="#006400" />
+	<mx:CheckBox x="218" y="37" id="encerradas"  label="Encerradas" color="#EE0000" />
+	<mx:CheckBox x="310" y="37" id="horas50"  label="50 Horas" color="#EE0000" includeInLayout="false" visible="false" />
+	<mx:Button x="400" y="39" label="Filtrar" click="findAllOperacionalByFiltroGerador()" height="18" />
+	
+	<mx:VBox x="0" y="70" width="100%" height="100%" paddingBottom="10" paddingLeft="3" paddingRight="3" paddingTop="2">
+		<mx:DataGrid width="100%" height="100%" id="gridOP" doubleClick="doubleClickGrid()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Situação">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="{data.situacaoImagem}" width="15" buttonMode="true" height="15"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Cliente" dataField="nomeCliente"/>
+				<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+				<mx:DataGridColumn headerText="Número &#13;Série" dataField="numeroSerie"/>
+				<mx:DataGridColumn headerText="Revisões &#13;Pendentes" dataField="revPendentes"/>
+				<mx:DataGridColumn headerText="Horímetro" dataField="horimetro"/>
+				<mx:DataGridColumn headerText="Atualização &#13;Horímetro" dataField="dataAtualizacaoHorimetro"/>
+				<mx:DataGridColumn headerText="Dias Para &#13;Próxima &#13;Revisão" dataField="horasPendentes"/>
+				<mx:DataGridColumn headerText="Número &#13;Próxima &#13;Revisão" dataField="proximaRevisao"/>
+				<mx:DataGridColumn headerText="Número &#13;OS" dataField="numOs"/>
+				<mx:DataGridColumn headerText="Número &#13;Contrato" dataField="numeroContrato"/>				
+				<mx:DataGridColumn headerText="Data" dataField="dataContrato"/>
+				<mx:DataGridColumn headerText="Consultor" dataField="consultor"/>
+				<mx:DataGridColumn headerText="Valor" dataField="valorContrato"/>
+				<mx:DataGridColumn headerText="Quantidade &#13;Parcelas" dataField="numeroParcela"/>
+				<mx:DataGridColumn headerText="Origem" dataField="origem"/>
+				<mx:DataGridColumn headerText="Destino" dataField="destino"/>
+				<mx:DataGridColumn headerText="TA" dataField="ta"/>
+				<mx:DataGridColumn headerText="PL Ativo" dataField="plAtivo"/>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	<mx:ComboBox x="975" y="37" id="hrPendentesCbx" change="horimetroCbx_changeHandler(event)" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+	<mx:Label x="830" y="39" text="Ordernar Hr. Pendentes"/>
+	<mx:ComboBox x="643" y="37" id="dataCbx" change="dataCbx_changeHandler(event)" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+	<mx:Label x="503" y="39" text="Ordernar At. Horímetro"/>
+</mx:Canvas>

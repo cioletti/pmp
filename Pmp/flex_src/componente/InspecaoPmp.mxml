@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.InspecaoPmpBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;				
+			
+			private var urlLogin:String;
+			private var urlReport:String;
+			private var myValidators:Array;
+			private var inspecao:InspecaoPmpBean = new InspecaoPmpBean();
+			public var inspecaoPmpTree: InspecaoPmpTree;
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione o XML(*.xml;)", "*.xml;");
+		
+			[Bindable]
+			private var SIMNAO_ARRAY: Array =
+				[
+					{label: "Selecione", date: "ND"},
+					{label: "Sim", data: "S"},
+					{label: "Não", data: "N"}
+				];
+			[Bindable]
+			public var comboSimNao: ArrayCollection;
+
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				comboSimNao = new ArrayCollection(SIMNAO_ARRAY);
+				serviceController.findAllInspecaoPmp(null,"Selecione");
+				serviceController.getUrlReport();
+				gridInsPmp.addEventListener("ADICIONARARQUIVO", adicionarArquivo);
+				gridInsPmp.addEventListener("VISUALIZARARQUIVO", downloadFile);
+			}
+			
+			//Métodos de UPLOAD
+			/**
+			 * @private
+			 * Chamado quando o botao de adicinar arquivor for clicado.
+			 */
+			private function adicionarArquivo(ev: Event):void {
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivo);
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivo(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				//serviceController.fazerUpload(data, uploadFile.name);
+				serviceController.fazerUpload(data, InspecaoPmpBean(gridInsPmp.selectedItem).id);
+			}
+			
+			/**
+			 * @private
+			 * Exibe a mensagem ao usuario informando que o Upload foi realizado com sucesso.
+			 */
+			private function uploadSucesso(event:ResultEvent):void {
+				if(Boolean(event.result) == true){
+					Alert.show("Arquivo salvo com sucesso", "Sucesso");
+					return;
+				}
+					Alert.show("Erro ao fazer upload de arquivo", "Erro");
+			}
+			
+			public function downloadFile(ev:Event):void
+			{	
+				if(InspecaoPmpBean(gridInsPmp.selectedItem).fileEt == 'S'){
+					var uv:URLVariables = new URLVariables();
+					uv.idOsPalm = InspecaoPmpBean(gridInsPmp.selectedItem).id;
+					
+					
+					var url:URLRequest = new URLRequest(urlReport+"/DownloadFileEt");
+					url.method = "GET";
+					url.data = uv;
+					navigateToURL(url,"_blank");
+				}else{
+					Alert.show("Não existe arquivo para ser visualizado!", "Alerta");
+				}
+			}
+			
+			
+			private function findAllInspecaoPmp():void{
+				var filtroTrocarPecas:String = trocarPecas.selectedLabel;
+				var dtEmissao:String = null;
+				var campoPesquisa:String;
+				if(textoPesquisa.text == null){
+					campoPesquisa = '';
+				}else{
+					campoPesquisa = textoPesquisa.text; 
+				}
+				
+				if(dtEmissaoForm.text == null || dtEmissaoForm.text == "" ){
+				      dtEmissao = "00/00/0000";
+				}else{dtEmissao = String(dtEmissaoForm.text);}
+			
+				serviceController.findAllInspecaoPmp(dtEmissao,filtroTrocarPecas,campoPesquisa);
+			}
+			
+			private function onResultFindAllInspecaoPmp(event:ResultEvent):void{
+				gridInsPmp.dataProvider = ArrayCollection(event.result);
+			}
+
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			
+			private function doubleClickGrid():void{
+				if(gridInsPmp.selectedItem != null){
+					
+				inspecao = InspecaoPmpBean(gridInsPmp.selectedItem);
+						
+				inspecaoPmpTree = new InspecaoPmpTree();
+				inspecaoPmpTree.recebeObjeto(inspecao);
+				inspecaoPmpTree.addEventListener(CloseEvent.CLOSE, removePopUp);
+				PopUpManager.addPopUp(inspecaoPmpTree, this, true);
+				PopUpManager.centerPopUp(inspecaoPmpTree);
+				inspecaoPmpTree.init(urlReport);
+				}
+                
+			}
+			
+			private function removePopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+            
+		]]>
+	</mx:Script>	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllInspecaoPmp" result="onResultFindAllInspecaoPmp(event);ProgressBarHelper.removeProgressBar()" />		
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />	
+		<mx:method name="fazerUpload" result="uploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Inspeção PMP" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="40" width="100%" height="100%" >
+		<mx:FormItem label="Pesquisar" >
+			<mx:TextInput id="textoPesquisa" toolTip="Digite: Modelo, Série, Cliente ou Técnico para fazer uma pesquisa."/>
+		</mx:FormItem>	
+		<mx:FormItem label="Data" width="152">
+			<mx:DateField formatString="DD/MM/YYYY" id="dtEmissaoForm" editable="true"/>
+		</mx:FormItem>		
+		<mx:FormItem label="Backlog" required="true">
+			<mx:ComboBox width="100%" id="trocarPecas" dataProvider="{comboSimNao}"/>
+		</mx:FormItem>
+		<mx:Button label="Pesquisar" click="findAllInspecaoPmp()"/>			
+	
+	</mx:HBox>		
+	<mx:VBox x="0" y="70" width="100%" height="100%" paddingBottom="10" paddingLeft="3" paddingRight="3" paddingTop="2">
+		<mx:DataGrid width="100%" height="100%" id="gridInsPmp" doubleClick="doubleClickGrid()" doubleClickEnabled="true">
+			<mx:columns>	
+		  		<mx:DataGridColumn headerText="Cliente" dataField="cliente"/>				
+				<mx:DataGridColumn headerText="Núm. OS" dataField="numeroOs"/>
+				<mx:DataGridColumn headerText="Data" dataField="emissao"/>
+				<mx:DataGridColumn headerText="Família" dataField="familia"/>
+				<!--<mx:DataGridColumn headerText="Máquina" dataField="equipamento"/>-->				
+				<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+				<mx:DataGridColumn headerText="Série" dataField="serie"/>
+				<mx:DataGridColumn headerText="Horímetro" dataField="horimetro"/>
+				<mx:DataGridColumn headerText="Técnico" dataField="tecnico"/>
+				<mx:DataGridColumn headerText="Filial" dataField="filial"/>
+				<mx:DataGridColumn headerText="Tipo Manutenção" dataField="tipoManutencao"/>					
+				<mx:DataGridColumn headerText="Ação" textAlign="center">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/upload.png" click="{dispatchEvent(new Event('ADICIONARARQUIVO', true))}" toolTip="Anexar Arquivo"/>
+								<mx:Image source="img/download.png" click="{dispatchEvent(new Event('VISUALIZARARQUIVO', true))}" toolTip="Visualizar Anexo"/>
+							</mx:HBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>						
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>	
+</mx:Canvas>

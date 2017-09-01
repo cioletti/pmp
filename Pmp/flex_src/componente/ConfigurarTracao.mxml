@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ConfigManutencaoBean;
+			import bean.ConfigurarTracaoBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean; 
+			import bean.TipoTracaoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var configTracao:ConfigurarTracaoBean = new ConfigurarTracaoBean();
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.findAllFamilia();
+				gridACSigla.addEventListener("REMOVERAC", removerAC);
+				gridTracaoSigla.addEventListener("REMOVERTR", removerTR);
+				gridTracao.addEventListener("REMOVERCONFIGTRACAO", removerConfigTracao);
+			}
+			
+			private function removerAC(ev: Event): void{
+				ArrayCollection(gridACSigla.dataProvider).removeItemAt(gridACSigla.selectedIndex);
+			}
+			
+			private function removerTR(ev: Event): void{
+				ArrayCollection(gridTracaoSigla.dataProvider).removeItemAt(gridTracaoSigla.selectedIndex);
+			}
+			
+			private function removerConfigTracao(ev: Event): void{
+				serviceController.removerConfigTracao(ConfigurarTracaoBean(gridTracao.selectedItem).id);
+			}
+			private function onResultRemoverConfigTracao(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Transação realizada com sucesso!","Alerta");
+					serviceController.findAllConfigTracao(ModeloBean(modeloCbx.selectedItem).idModelo);
+					this.novo();
+					return;
+				}else{
+					Alert.show("Erro ao realizar Transação!","Alerta");
+					return;
+				}
+			}
+			[Bindable]
+			private var comboFamilia:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				if(comboFamilia.length > 0){
+					comboFamilia.removeAll();
+				}
+				comboFamilia.addAll(ArrayCollection(event.result));
+				familiaCbx.dataProvider = comboFamilia;
+			}
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllModelos(FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				comboModelo.addAll(ArrayCollection(event.result));
+				modeloCbx.dataProvider = comboModelo;
+				
+			}
+			private function onChangeModelo():void{
+				serviceController.findAllTipoTracao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				serviceController.findAllConfigTracao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				tracaoCbx.selectedIndex = -1;
+				acCbx.selectedIndex = -1;
+				gridACSigla.dataProvider = null;
+				gridTracaoSigla.dataProvider = null;
+				gridTracao.dataProvider = null;
+			}
+			[Bindable]
+			private var comboTracao:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllTipoTracao(event:ResultEvent):void{
+				if(comboTracao.length > 0){
+					comboTracao.removeAll();
+				}
+				comboTracao.addAll(ArrayCollection(event.result));
+				tracaoCbx.dataProvider = comboTracao;
+			}
+			private function onResultFindAllConfigTracao(event:ResultEvent):void{
+				gridTracao.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function saveOrUpdate():void{
+				if(familiaCbx.selectedIndex == -1){
+					Alert.show("O campo família é obrigatório!","Alerta");
+					return;
+				}
+				if(modeloCbx.selectedIndex == -1){
+					Alert.show("O campo modelo é obrigatório!","Alerta");
+					return;
+				}
+				if(tracaoCbx.selectedIndex == -1){
+					Alert.show("O campo tração é obrigatório!","Alerta");
+					return;
+				}
+				if(acCbx.selectedIndex == -1){
+					Alert.show("O campo ar condicionado é obrigatório!","Alerta");
+					return;
+				}
+				configTracao.idFamilia = FamiliaBean(familiaCbx.selectedItem).id;
+				configTracao.idModelo = ModeloBean(modeloCbx.selectedItem).idModelo;
+				configTracao.idTracao = TipoTracaoBean(tracaoCbx.selectedItem).id;
+				configTracao.possuiArCondicionado = acCbx.selectedItem.data;
+				configTracao.siglaAcList = new ArrayCollection();
+				if(gridACSigla.dataProvider != null){
+					for(var i:int = 0; i < ArrayCollection(gridACSigla.dataProvider).length; i++){
+						var obj:Object = ArrayCollection(gridACSigla.dataProvider).getItemAt(i);
+						configTracao.siglaAcList.addItem(obj.sigla);
+					}
+				}
+				configTracao.siglaTracaoList = new ArrayCollection();
+				if(gridTracaoSigla.dataProvider != null){
+					for(var i:int = 0; i < ArrayCollection(gridTracaoSigla.dataProvider).length; i++){
+						var obj:Object = ArrayCollection(gridTracaoSigla.dataProvider).getItemAt(i);
+						configTracao.siglaTracaoList.addItem(obj.sigla);
+					}
+				}
+				serviceController.saveOrUpdate(configTracao);
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Não foi possível realizar transação!","Alerta");
+					return;
+				}
+				configTracao = ConfigurarTracaoBean(event.result);
+				Alert.show("Transação realizada com!","Alerta");
+				serviceController.findAllConfigTracao(ModeloBean(modeloCbx.selectedItem).idModelo);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(siglaACTxt.text == ""){
+					Alert.show("O campo sigla do Ar condicionado é obrigatório!","Alerta");
+					return;
+				}
+				var obj:Object = new Object();
+				obj.sigla = siglaACTxt.text.toUpperCase();
+				if(gridACSigla.dataProvider == null){
+					gridACSigla.dataProvider = new ArrayCollection();
+					ArrayCollection(gridACSigla.dataProvider).addItem(obj);
+				}else{
+					ArrayCollection(gridACSigla.dataProvider).addItem(obj);
+				}
+				siglaACTxt.text = '';
+			}
+
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if(tracaoTxt.text == ""){
+					Alert.show("O campo sigla do Ar condicionado é obrigatório!","Alerta");
+					return;
+				}
+				var obj:Object = new Object();
+				obj.sigla = tracaoTxt.text.toUpperCase();
+				if(gridACSigla.dataProvider == null){
+					gridTracaoSigla.dataProvider = new ArrayCollection();
+					ArrayCollection(gridTracaoSigla.dataProvider).addItem(obj);
+				}else{
+					ArrayCollection(gridTracaoSigla.dataProvider).addItem(obj);
+				}
+				tracaoTxt.text = '';
+			}
+			
+			private function doubleClickGridTracao():void{
+				if(gridTracao.selectedItem != null){
+					configTracao = ConfigurarTracaoBean(gridTracao.selectedItem);
+					this.selectedFamilia();
+					this.selectedModelo();
+					this.selectedTipoTracao();
+					this.selectedPossuiAC();
+					var resultList:ArrayCollection = new ArrayCollection();
+					if(configTracao.siglaAcList != null){
+						for(var i:int = 0; i < configTracao.siglaAcList.length; i++){
+							var obj:Object = new Object();
+							obj.sigla = configTracao.siglaAcList.getItemAt(i);
+							resultList.addItem(obj);
+						}
+						gridACSigla.dataProvider = resultList;
+					}
+					
+					var tracaoList:ArrayCollection = new ArrayCollection();
+					
+					if(configTracao.siglaTracaoList != null){
+						for(var i:int = 0; i < configTracao.siglaTracaoList.length; i++){
+							var obj:Object = new Object();
+							obj.sigla = configTracao.siglaTracaoList.getItemAt(i);
+							tracaoList.addItem(obj);
+						}
+						gridTracaoSigla.dataProvider = tracaoList;
+					}
+				}
+			}
+			
+			private function selectedFamilia():void{
+				var familiaList:ArrayCollection = ArrayCollection(familiaCbx.dataProvider);
+				for(var i:int=0; i < familiaList.length; i++){
+					var familia:FamiliaBean = FamiliaBean(familiaList.getItemAt(i));
+					if(configTracao.idFamilia == familia.id){
+						familiaCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:ModeloBean = ModeloBean(modeloList.getItemAt(i));
+					if(configTracao.idModelo == modelo.idModelo){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedTipoTracao():void{
+				var tipoTracaoList:ArrayCollection = ArrayCollection(tracaoCbx.dataProvider);
+				for(var i:int=0; i < tipoTracaoList.length; i++){
+					var tpTracao:TipoTracaoBean = TipoTracaoBean(tipoTracaoList.getItemAt(i));
+					if(configTracao.idTracao == tpTracao.id){
+						tracaoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedPossuiAC():void{
+				var acList:ArrayCollection = ArrayCollection(acCbx.dataProvider);
+				for(var i:int=0; i < acList.length; i++){
+					var acStr:Object = Object(acList.getItemAt(i));
+					var aux:String = (acStr.label == 'Sim')?'S':'N'; 
+					if(configTracao.possuiArCondicionado == aux){
+						acCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function novo():void{
+				configTracao = new ConfigurarTracaoBean();
+				//familiaCbx.selectedIndex = -1;
+				//modeloCbx.dataProvider = null;
+				//modeloCbx.selectedIndex = -1;
+//				if(comboTracao.length > 0){
+//					comboTracao.removeAll();
+//				}
+//				tracaoCbx.dataProvider = comboTracao;
+				tracaoCbx.selectedIndex = -1;
+				acCbx.selectedIndex = -1;
+				gridACSigla.dataProvider = null;
+				gridTracaoSigla.dataProvider = null;
+			}
+
+		]]>
+	</mx:Script>
+	
+	
+	<mx:ArrayCollection id="tipoTracaoCombo">
+		<mx:Object label="Sim" data="S"/>
+		<mx:Object label="Não" data="N"/>
+	</mx:ArrayCollection>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelos" result="onResultFindAllModelos(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTipoTracao" result="onResultFindAllTipoTracao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigTracao" result="onResultFindAllConfigTracao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerConfigTracao" result="onResultRemoverConfigTracao(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:DataGrid x="0" y="466" width="100%" height="100%" id="gridTracao" doubleClickEnabled="true" doubleClick="doubleClickGridTracao()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Tração" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCONFIGTRACAO', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Configurar Tração" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="204" width="100%" horizontalAlign="center">
+		<mx:VBox height="100%" id="formAC">
+			<mx:Label text="Ar condicionado"/>
+			<mx:DataGrid width="283" id="gridACSigla">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Sigla AR Condicionado" dataField="sigla"/>
+					<mx:DataGridColumn headerText="Excluir">
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERAC', true))}"/>
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:HBox width="100%">
+				<mx:Label text="Sigla Ar"/>
+				<mx:TextInput maxChars="10" id = "siglaACTxt"/>
+				<mx:Button label="ADD" click="button1_clickHandler(event)"/>
+			</mx:HBox>
+		</mx:VBox>
+		<mx:VBox height="100%">
+			<mx:Label text="Tração"/>
+			<mx:DataGrid width="100%" id="gridTracaoSigla">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Sigla Tração" dataField="sigla"/>
+					<mx:DataGridColumn headerText="Excluir">
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERTR', true))}"/>
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:HBox width="100%">
+				<mx:Label text="Sigla Tração" width="87" />
+				<mx:TextInput maxChars="10" id="tracaoTxt"/>
+				<mx:Button label="ADD" click="button2_clickHandler(event)"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:HBox x="0" y="48" width="100%" horizontalAlign="center">
+		<mx:Form> 
+			<mx:FormItem label="Família" required="true">
+				<mx:ComboBox id="familiaCbx" selectedIndex="-1" labelField="descricao" prompt="Selecione" change="familiaCbx_changeHandler(event)" dataProvider="{comboFamilia}"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox x="48" y="1" id="modeloCbx" labelField="descricao" dataProvider="{comboModelo}" change="onChangeModelo()" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo Tração" required="true">
+				<mx:ComboBox x="48" y="1" id="tracaoCbx" labelField="descricao" dataProvider="{comboTracao}" change="" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Possui Ar condicionado" required="true">
+				<mx:ComboBox x="48" y="1" id="acCbx" labelField="label" dataProvider="{tipoTracaoCombo}" change="" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Tipo Tração" required="true">
+				<mx:ComboBox id="tipoTracaoCbx" labelField="descricao" />
+			</mx:FormItem-->
+		</mx:Form>
+	</mx:HBox>
+	<mx:HBox x="0" y="422" width="100%" horizontalAlign="center">
+		<mx:Button label="Salvar" click="saveOrUpdate()"/>
+		<mx:Button label="Novo" click="novo()"/>
+	</mx:HBox>
+	
+</mx:Canvas>

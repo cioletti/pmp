@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*" xmlns:componente="componente.*">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.UsuarioBean;
+			
+			import mx.events.FlexEvent;
+
+			
+			private var urlLogin:String;
+			private var _usuarioBean:UsuarioBean;
+			
+			public function init(urlLogin:String, usuarioBean:UsuarioBean): void {
+				this._usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin;
+				
+			}
+
+			protected function abaHoras_creationCompleteHandler(event:FlexEvent):void
+			{
+				contratoHoras.init(this.urlLogin, this._usuarioBean);
+			}
+
+			protected function abaMeses_creationCompleteHandler(event:FlexEvent):void
+			{
+				contratoMeses.init(this.urlLogin, this._usuarioBean);
+			}
+
+		]]>
+	</mx:Script>
+
+	<mx:TabNavigator id="tabNav" width="100%" height="100%">
+
+		<mx:VBox id="abaHoras" label="Horas" width="100%" height="100%" horizontalAlign="center" creationComplete="abaHoras_creationCompleteHandler(event)">
+			<componente:Contrato id="contratoHoras" />
+		</mx:VBox>
+
+		<mx:VBox id="abaMeses" label="Meses" width="100%" height="100%" horizontalAlign="center" creationComplete="abaMeses_creationCompleteHandler(event)">
+			<componente:ContratoDeGerador id="contratoMeses"/>
+		</mx:VBox>
+
+	</mx:TabNavigator>
+
+</mx:Canvas>
+
+
+
+

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.DescontoPDPSpotBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var descontoPdpSpotBean:DescontoPDPSpotBean;
+			public function init(urlLogin:String):void{
+				descontoPdpSpotBean = new DescontoPDPSpotBean();
+				this.urlLogin = urlLogin;
+				serviceController.findAllDescontoPdpSpot();
+				descontoPdpSpotGrid.addEventListener("REMOVERPDP", removerPDP);
+			}
+			private function removerPDP(ev: Event): void{
+				serviceController.removerPdpSpot(descontoPdpSpotGrid.selectedItem);
+			}
+			private function onResultRemoverPdpSpot(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					descontoPdpSpotBean = new DescontoPDPSpotBean();
+					descricaoPdp.text = "";
+					valorPDPSpot.text = "";
+					serviceController.findAllDescontoPdpSpot();
+				}else{
+					Alert.show("Erro ao tentar remover PDP Spot!","Alerta");
+				}
+			}
+			private function onResultFindAllDescontoPdpSpot(event:ResultEvent):void{
+				descontoPdpSpotGrid.dataProvider = ArrayCollection(event.result);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(descricaoPdp.text == ""){
+					Alert.show("Digite a descrição do PDP!","Alerta");
+					return;
+				}
+				if(valorPDPSpot.text == ""){
+					Alert.show("Entre com o Desconto PDP SPOT","Alerta");
+					return;
+				}
+				descontoPdpSpotBean.descricao = descricaoPdp.text;
+				descontoPdpSpotBean.valor = valorPDPSpot.text;
+				serviceController.saveOrUpdatePdpSopt(descontoPdpSpotBean);
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void
+			{
+				if(event.result != null){
+					Alert.show("PDP salvo com sucesso!","Alerta");
+					descontoPdpSpotBean = DescontoPDPSpotBean(event.result);
+					serviceController.findAllDescontoPdpSpot();
+					return;
+				}
+				Alert.show("Não foi possível salvar PDP!","Alerta");
+			}
+
+
+			
+
+
+			protected function descontoPdpSpotGrid_changeHandler():void
+			{
+				descontoPdpSpotBean = DescontoPDPSpotBean(descontoPdpSpotGrid.selectedItem);
+				descricaoPdp.text = descontoPdpSpotBean.descricao;
+				valorPDPSpot.text = descontoPdpSpotBean.valor;
+			}
+
+
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				descontoPdpSpotBean = new DescontoPDPSpotBean();
+				descricaoPdp.text = "";
+				valorPDPSpot.text = "";
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="saveOrUpdatePdpSopt" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllDescontoPdpSpot" result="onResultFindAllDescontoPdpSpot(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerPdpSpot" result="onResultRemoverPdpSpot(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Atualizar CNPJ Filial" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="83" width="100%" horizontalAlign="center">
+		<mx:Form>
+			<mx:FormItem label="Descrição PDP">
+				<mx:TextInput id="descricaoPdp" maxChars="50"/>
+			</mx:FormItem>
+			<mx:FormItem label="%Desc PDP Spot">
+				<control:DecimalInput editable="true"  id="valorPDPSpot" width="53" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem>
+				<mx:HBox>
+				<mx:Button label="Salvar" click="button1_clickHandler(event)"/>
+				<mx:Button label="Novo"  click="button2_clickHandler(event)"/>
+					
+				</mx:HBox>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	<mx:DataGrid x="0" y="201" width="100%" height="100%" id="descontoPdpSpotGrid" doubleClickEnabled="true" doubleClick="descontoPdpSpotGrid_changeHandler()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Descricao" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Valor" dataField="valor"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERPDP', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</mx:Canvas>

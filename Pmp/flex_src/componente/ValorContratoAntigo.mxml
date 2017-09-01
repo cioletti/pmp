@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300" xmlns:control="br.com.thinklab.util.control.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.ContratoComercialBean;
+			import bean.PrecoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
+			import mx.utils.StringUtil;
+			
+			import util.ProgressBar;
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var siglaTipoContrato:String;
+			public var isSave:Boolean = false;
+			public var isEnableParcelas:Boolean = false;
+			public var isSubTributaria:Boolean = false;
+			public var qtdParcelas:Number;
+			public var contrato:ContratoComercialBean = new ContratoComercialBean();
+			private var parcelasBean:ArrayCollection;
+			public function init(urlLogin:String, qtdParcelas:Number, contrato:ContratoComercialBean, siglaTipoContrato:String):void{
+				this.showCloseButton = false;
+				this.siglaTipoContrato = siglaTipoContrato;
+				this.qtdParcelas = qtdParcelas;
+				this.contrato = ContratoComercialBean(ObjectUtil.copy(contrato));
+				serviceController.findAllContratoComercial(this.contrato.id);
+				ProgressBarHelper.openProgressBar(this);
+//				if(this.contrato.codErroDbs == null || this.contrato.codErroDbs == ""){
+//					serviceController.findAllParcelas(contrato.id);
+//				}else if(this.contrato.codErroDbs == '100' || this.contrato.codErroDbs == '99'){
+//					Alert.show(this.contrato.msgErroDbs+"", "Alerta");
+//					this.close();
+//				}else if(this.contrato.codErroDbs == '00' || this.contrato.isFindSubstuicaoTributaria == 'P'){
+//					Alert.show("Aguarde aplicar a substituição tributária", "Alerta");
+//					this.close();
+//				}else if(this.contrato.codErroDbs == '00' || this.contrato.isFindSubstuicaoTributaria == 'F'){
+//					//Busca o valor do contrato com substituição tributária
+//					serviceController.findAllParcelasSubstituicaoTributaria(contrato.id);
+//				}
+			}
+			private function ok():void{
+				
+				var valorSugeridoAux:String = valorSugerido.text.replace(".", "").replace(",", "").replace("R$","");
+				var valorContratoAux:String = vlrContrato.text.replace(".","").replace(",","");
+				if(Number(valorContratoAux) < Number(StringUtil.trim(valorSugeridoAux))){
+					Alert.show("O valor do contrato não pode ser inferior ao sugerido!", "Alerta");
+					return;
+				}
+				if(Number(valorContratoAux) == 0){
+					Alert.show("Não é permitido salvar o contrato com o valor 0.00!", "Alerta");
+					return;
+				}
+				if(this.siglaTipoContrato == 'CON'){
+					this.contrato.valorContratoConcessao = StringUtil.trim(valorConcessao.text.replace("R$",""));
+				}
+				this.contrato.valorContrato = vlrContrato.text;
+				this.contrato.valorSugerido = valorSugerido.text.replace("R$","");
+				var numSerie:String = contrato.numeroSerie.substr(4, contrato.numeroSerie.length -1);
+				//Alert.show(numSerie+"","Alerta");
+				this.contrato.numeroSerie = numSerie;
+				
+				serviceController.saveOrUpdateContratoAntigo(this.contrato);
+				//this.close();
+			}
+			
+			private function onResultFindAllParcelas(event:ResultEvent):void{
+				parcelasBean = ArrayCollection(event.result);
+				if(this.contrato.valorContrato != null){
+					vlrContrato.text = this.contrato.valorContrato;
+				}else{
+					vlrContrato.text = PrecoBean(parcelasBean.getItemAt(qtdParcelas-1)).preco.replace("R$ ","");;
+				}
+				valorSugerido.text = PrecoBean(parcelasBean.getItemAt(qtdParcelas-1)).preco;
+				if(siglaTipoContrato == 'CON'){
+					valorConcessao.includeInLayout = true;
+					valorConcessao.visible = true;
+					valorConcessaoLabel.includeInLayout = true;
+					valorConcessaoLabel.visible = true;
+					valorConcessao.text = PrecoBean(parcelasBean.getItemAt(qtdParcelas-1)).precoConcessao;
+				}
+				buttonOk.visible = true;
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+					contrato = ContratoComercialBean(event.result);
+					isSave = true;
+				if(contrato != null){
+					Alert.show("Contrato salvo com sucesso!", "Alerta");
+					this.close();
+					return;
+				}
+				Alert.show("Não foi possível salvar contrato!", "Alerta");
+			}
+			private function onResultFindAllContratoComercial(event:ResultEvent):void{
+				contrato = ContratoComercialBean(event.result);
+				
+				this.contrato = contrato;
+				if(this.contrato.codErroDbs == null || this.contrato.codErroDbs == ""){
+					serviceController.findAllParcelas(contrato.id);
+					this.isEnableParcelas = true;
+				}else if(this.contrato.codErroDbs == '100' || this.contrato.codErroDbs == '99'){
+					Alert.show(this.contrato.msgErroDbs+"", "Alerta");
+					ProgressBarHelper.removeProgressBar();
+					isSubTributaria = true;
+					this.close();
+				}else if(this.contrato.codErroDbs == '00' && this.contrato.isFindSubstuicaoTributaria == 'P'){
+					Alert.show("Aguarde o retorno da substituição tributária!", "Alerta");
+					ProgressBarHelper.removeProgressBar();
+					isSubTributaria = true;
+					this.close();
+				}else if(this.contrato.codErroDbs == '00' && this.contrato.isFindSubstuicaoTributaria == 'S'){
+					//Busca o valor do contrato com substituição tributária
+					serviceController.findAllParcelasSubstituicaoTributaria(contrato.id);
+					isEnableParcelas = true;	
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllParcelas" result="onResultFindAllParcelas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllParcelasSubstituicaoTributaria" result="onResultFindAllParcelas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdateContratoAntigo" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllContratoComercial" result="onResultFindAllContratoComercial(event)" />
+	</mx:RemoteObject>
+	<mx:Label x="40" y="12" text="Valor Sugerido"/>
+	<mx:Label x="154" y="12" text="" id="valorSugerido"/>
+	<mx:Label x="40" y="38" text="Valor Concessão" id="valorConcessaoLabel" includeInLayout="false" visible="false"/>
+	<mx:Label x="154" y="38" text="" id="valorConcessao" includeInLayout="false" visible="false"/>
+	<mx:Button x="146" y="126" label="Ok" click="ok()" visible="false" id="buttonOk"/>
+	<mx:Form x="40" y="64" height="54">
+		<mx:FormItem label="Valor Contrato" required="true">
+			<control:DecimalInput editable="true"  id="vlrContrato" width="93" text="" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+		</mx:FormItem>
+	</mx:Form>
+</util:ModuleTitleWindow>

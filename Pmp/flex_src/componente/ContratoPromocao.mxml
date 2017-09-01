@@ -1,0 +1,1807 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*" xmlns:controls="fs.controls.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.BusinessGroupBean;
+			import bean.ClassificacaoBean;
+			import bean.ClienteBean;
+			import bean.ConfigManutencaoBean;
+			import bean.ConfigManutencaoHorasBean;
+			import bean.ConfigurarTracaoBean;
+			import bean.ContratoComercialBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.MotNaoFecContratoBean;
+			import bean.PrefixoBean;
+			import bean.RangerBean;
+			import bean.StatusContratoBean;
+			import bean.TipoContratoBean;
+			import bean.UsuarioBean;
+			
+			import flash.utils.flash_proxy;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.ObjectUtil;
+			import mx.utils.StringUtil;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var urlReport:String = "";
+			private var _usuarioBean:UsuarioBean;
+			[Bindable] 
+			private var contrato:ContratoComercialBean = new ContratoComercialBean();
+			public function init(urlLogin:String, usuarioBean:UsuarioBean):void{
+				this._usuarioBean = usuarioBean;
+				this.urlLogin = urlLogin;
+				this.telComercial.inputFormat = FormattedInput.INPUT_FORMAT_FONE_DDD;
+				this.telServicos.inputFormat = FormattedInput.INPUT_FORMAT_FONE_DDD;
+				frmDistanciaGerador.visible = false;
+				frmDistanciaGerador.includeInLayout = false;
+								
+				serviceController.findAllTipoContrato();
+				serviceController.findAllStatusContrato();
+				serviceController.getUrlReportServer();
+				serviceController.findAllMotNaoFecContrato();
+				serviceController.findAllFamiliaPromocao('S');
+				serviceController.findAllBusinessGroupContrato();
+				serviceController.findAllClassificacao();
+				contExcessao.selected = true;
+			}
+			private function onResultFindAllClassificacao(event:ResultEvent):void{
+				classificacaoCbx.dataProvider = ArrayCollection(event.result);
+			}
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();	
+			[Bindable]
+			private var comboFamilia:ArrayCollection = new ArrayCollection();	
+			[Bindable]
+			private var comboPrecoEspecial:ArrayCollection = new ArrayCollection();	
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				modeloCbx.selectedIndex = -1;
+				prefixoCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				range.dataProvider = null;
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				if(comboPrecoEspecial.length > 0){
+					comboPrecoEspecial.removeAll();
+				}
+				comboModelo.addAll(ArrayCollection(event.result));
+				this.selectedBusinessPM();
+				ProgressBarHelper.removeProgressBar();
+			}
+			[Bindable]
+			private var comboPrefixo:ArrayCollection = new ArrayCollection();	
+			private function onResultFindAllPrefixos(event:ResultEvent):void{
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				if(comboPrecoEspecial.length > 0){
+					comboPrecoEspecial.removeAll();
+				}
+				comboPrefixo.addAll(ArrayCollection(event.result));
+				prefixoCbx.dataProvider = comboPrefixo;
+			}
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				comboFamilia.addAll(ArrayCollection(event.result));
+			}
+			private function onResultfindAllPrecoEspecial(event:ResultEvent):void{
+				if(comboPrecoEspecial.length > 0){
+					comboPrecoEspecial.removeAll();
+				}
+				comboPrecoEspecial.addAll(ArrayCollection(event.result));
+				precoEspecialCbx.dataProvider = comboPrecoEspecial;
+			}
+			private function onResultFindAllBusinessGroup(event:ResultEvent):void{
+				bgCbx.dataProvider = event.result;
+				this.selectedBusinessPM();
+			}
+			private function onResultFindAllRanger(event:ResultEvent):void{
+				range.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllTipoContrato(event:ResultEvent):void{
+				tipoContratoCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindAllStatusContrato(event:ResultEvent):void{
+				statusContratoCbx.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultFindDataNomeCliente(event:ResultEvent):void{
+				this.popupCliente(ArrayCollection(event.result));
+			}
+			private function onResultFindAllManutencaoHoras(event:ResultEvent):void{
+				manutHoras.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function onResultGetUrlReportServer(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			private function onResultFindAllMotNaoFecContrato(event:ResultEvent):void{
+				motNaoFecContratoCbx.dataProvider = event.result;
+			}
+			private function onResultFindAllParcelas(event:ResultEvent):void{
+				
+				var preco:PrecoPmp = new PrecoPmp();
+				preco.addEventListener(CloseEvent.CLOSE, removePopUpPreco);
+				PopUpManager.addPopUp(preco,this,true);
+				PopUpManager.centerPopUp(preco)
+				preco.percentWidth = 400;
+				preco.percentHeight = 300;
+				preco.gridPrecos.dataProvider = event.result;
+			}
+			
+			private function removePopUpPreco(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+			private var valorContrato:ValorContrato = new ValorContrato();
+			private function removePopUpValorContrato(obj:CloseEvent):void{
+				this.contrato = valorContrato.contrato;
+				if(valorContrato.isSave == true){
+					PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+					var tipoContrato:TipoContratoBean = TipoContratoBean(tipoContratoCbx.selectedItem);
+					if(tipoContrato.sigla != 'CON'){
+						if(valorContrato.isEnableParcelas == true){
+							precoManutImg.includeInLayout = true;
+							precoManutImg.visible = true;
+							parcelasCbx.enabled = true;
+						}
+					}
+				}
+				if(valorContrato.isSubTributaria == true){
+					PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+					precoManutImg.includeInLayout = false;
+					precoManutImg.visible = false;
+					parcelasCbx.enabled = false;
+				}
+				if(StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CEN'){
+					this.novoContrato();
+				}
+			}
+			
+			private function setContrato():void{
+				//contrato = ContratoComercialBean(gridPesquisaContrato.selectedItem);
+				//nomeCliente.text = contrato.nomeCliente;
+				classificacaoCbx.enabled = false;
+				this.indicadoBean.nome = contrato.funcionarioIndicado;
+				this.indicadoBean.matricula = contrato.matriculaIndicado;
+				funcionarioIndicado.text = contrato.funcionarioIndicado;
+				aplicarSubstituicaoTributariaCbx.selected = false;
+				retirarSubstituicaoTributariaCbx.selected = false;
+				numeroContrato.text = contrato.numeroContrato;
+				codigoCliente.text = contrato.codigoCliente;
+				modeloCbx.selectedIndex = -1;
+				prefixoCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				manutHoras.dataProvider = contrato.configManutencaoHorasBeanList;
+				range.dataProvider = null;
+				range.dataProvider = contrato.rangerList;
+				if(contrato.possuiHorasMes == 'S'){
+					mediaHorasMesForm.includeInLayout = true;
+					mediaHorasMesForm.visible = true;
+					tempoCbx.selectedIndex = 1;
+					mediaHorasMes.text = String(contrato.mediaHorasMes); 
+				}else{
+					mediaHorasMesForm.includeInLayout = false;
+					mediaHorasMesForm.visible = false;
+					tempoCbx.selectedIndex = 0;
+					mediaHorasMes.text = ""; 
+				}
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				if(comboPrecoEspecial.length > 0){
+					comboPrecoEspecial.removeAll();
+				}
+				modeloCbx.dataProvider = null;
+				//prefixoCbx.dataProvider = null;
+				comboModelo.addAll(contrato.modeloList);
+				modeloCbx.dataProvider = comboModelo;
+				comboPrefixo.addAll(contrato.prefixoList);
+				comboPrecoEspecial.addAll(contrato.precoEspecialList);
+				precoEspecialCbx.dataProvider = comboPrecoEspecial;
+				//prefixoCbx.dataProvider = comboPrefixo;
+				checkTa.selected = (contrato.TA == 'S')?true:false; 
+				
+				horimetro.text = String(contrato.horimetro);
+				distanciaGerador.text = String(contrato.distanciaGerador);
+				numeroSerie.text = contrato.serie.substr(4, contrato.serie.length -1);
+				
+				
+				telComercial.text = contrato.telComercial;
+				razaoSocial.text = contrato.razaoSocial;
+				//contatoComercial.text = contrato.contatoComercial;
+				
+				var familiaList:ArrayCollection = ArrayCollection(familiaCbx.dataProvider);
+				for(var i:int=0; i < familiaList.length; i++){
+					var familia:FamiliaBean = FamiliaBean(familiaList.getItemAt(i));
+					if(contrato.familia == familia.descricao){
+						familiaCbx.selectedIndex = i;
+						break;
+					}
+				}
+				
+				contExcessao.selected = (contrato.contExcessao == 'S')?true:false;
+				
+				cidade.text = contrato.cidade;
+				endereco.text = contrato.endereco;
+				bairro.text = contrato.bairro;
+				cnpj.text = contrato.cnpj;
+				inscEstadual.text = contrato.inscEstadual;
+				inscMunicipal.text = contrato.inscMunicipal;
+				contribuinte.text = contrato.contribuinte;
+				procurador.text = contrato.procurador;
+				cpf.text = contrato.cpf;
+				emailContatoComercial.text = contrato.emailComercial;
+				contatoServicos.text = contrato.contatoServicos;
+				emailContatoServicos.text = contrato.emailServicos;
+				telServicos.text = contrato.telServicos;
+				uf.text = contrato.uf;
+				fabricante.text = contrato.fabricante;
+				cep.text = contrato.cep;
+				condExcepcional.text = contrato.condExcepcional;
+				emailCheckList.text = contrato.emailCheckList;
+				this.selectedModelo();
+				this.selectedPrefixo();
+				this.selectedBusinessGroup();
+				this.selectedTipoContrato();
+				this.selectedStatusContrato();
+				this.selectedRanger();
+				this.selectedParcelas();
+				this.selectedPrecoEspecial();
+				this.selectedTerritorio();
+				this.selectedClassificacao();
+				if(contrato.siglaClassificacaoContrato == 'CUS' || contrato.siglaClassificacaoContrato == 'CUSLIGHT'){
+					territorioCbx.enabled = true;
+				}
+				if(contrato.siglaClassificacaoContrato == 'PART'){
+					territorioCbx.enabled = false;
+				}
+				if(contrato.configTracaoList != null && contrato.configTracaoList.length > 0){
+					formTracao.includeInLayout = true;
+					formTracao.visible = true;
+					comboTracao.removeAll();
+					comboTracao.addAll(contrato.configTracaoList);
+					tracaoCbx.dataProvider = comboTracao;
+					this.selectedConfigTracao();
+				}else{
+					comboTracao.removeAll();
+					tracaoCbx.dataProvider = comboTracao;
+					formTracao.includeInLayout = false;
+					formTracao.visible = false;
+				}
+				if(contrato.tipoCustomizacaoList != null && contrato.tipoCustomizacaoList.length > 0){
+					formTipoCustomizacao.includeInLayout = true;
+					formTipoCustomizacao.visible = true;
+					listTipoCustomizacao.removeAll();
+					listTipoCustomizacao.addAll(contrato.tipoCustomizacaoList);
+					tipoCustomizacaoList.dataProvider = listTipoCustomizacao;
+				}else{
+					listTipoCustomizacao.removeAll();
+					tipoCustomizacaoList.dataProvider = listTipoCustomizacao;
+					formTipoCustomizacao.includeInLayout = false;
+					formTipoCustomizacao.visible = false;
+				}
+				
+				
+				motNaoFecContratoCbx.selectedIndex = -1;
+				changeComboStatus();
+				this.motivoNaoFechamentoContrato();
+				
+				
+				if(statusContratoCbx.selectedItem.sigla == 'CEN'){
+					//aplicarSubstituicaoTributariaForm.includeInLayout = true;
+					//aplicarSubstituicaoTributariaForm.visible = true;
+					//aplicarSubstituicaoTributariaCbx.selected = false;
+					//retirarSubstituicaoTributariaForm.includeInLayout = true;
+					//retirarSubstituicaoTributariaForm.visible = true;
+					//retirarSubstituicaoTributariaCbx.selected = false;
+				}else{
+					//aplicarSubstituicaoTributariaForm.includeInLayout = false;
+					//aplicarSubstituicaoTributariaForm.visible = false;
+					//aplicarSubstituicaoTributariaCbx.selected = false;
+					//retirarSubstituicaoTributariaForm.includeInLayout = false;
+					//retirarSubstituicaoTributariaForm.visible = false;
+					//retirarSubstituicaoTributariaCbx.selected = false;
+				}
+				
+				if(isNaN(contrato.idMotNaoFecContrato) || contrato.idMotNaoFecContrato == 0 || this._usuarioBean.isAdm){
+					salvarContrato.enabled = true;
+				}else{
+					salvarContrato.enabled = false;
+				}
+				
+				if(statusContratoCbx.selectedIndex > 0 && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CA'){
+					//&& (contrato.valorContrato != null && contrato.valorContrato != "")){
+					salvarContrato.includeInLayout = false;
+					salvarContrato.visible = false;
+//					if(TipoContratoBean(tipoContratoCbx.selectedItem).sigla == 'VEN'){
+//						revisaoContrato.includeInLayout = true;
+//						revisaoContrato.visible = true;
+//						revisaoCliente.text = String(contrato.printRevisaoPosPago);
+//					}else{
+//						revisaoContrato.includeInLayout = true;
+//						revisaoContrato.visible = true;
+//					}
+				}else{
+					salvarContrato.includeInLayout = true;
+					salvarContrato.visible = true;
+				}
+//				if(statusContratoCbx.selectedIndex > 0 && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CA'){
+//					manutHoras.enabled = false;
+//					manutHoras.editable = false;
+//				}
+				
+			}
+			
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:ModeloBean = ModeloBean(modeloList.getItemAt(i));
+					if(contrato.modelo == modelo.descricao){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedPrefixo():void{
+				for(var i:int=0; i < comboPrefixo.length; i++){
+					var prefixo:PrefixoBean = PrefixoBean(comboPrefixo.getItemAt(i));
+					if(contrato.prefixo == prefixo.descricao){
+						prefixoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedBusinessGroup():void{
+				var bgList:ArrayCollection = ArrayCollection(bgCbx.dataProvider);
+				for(var i:int=0; i < bgList.length; i++){
+					var bg:BusinessGroupBean = BusinessGroupBean(bgList.getItemAt(i));
+					if(contrato.businessGroup == bg.descricao){
+						bgCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedTipoContrato():void{
+				var tpList:ArrayCollection = ArrayCollection(tipoContratoCbx.dataProvider);
+				for(var i:int=0; i < tpList.length; i++){
+					var tp:TipoContratoBean = TipoContratoBean(tpList.getItemAt(i));
+					if(contrato.idTipoContrato == tp.id){
+						tipoContratoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedStatusContrato():void{
+				var scList:ArrayCollection = ArrayCollection(statusContratoCbx.dataProvider);
+				for(var i:int=0; i < scList.length; i++){
+					var sc:StatusContratoBean = StatusContratoBean(scList.getItemAt(i));
+					if(contrato.statusContrato == sc.id){
+						statusContratoCbx.selectedIndex = i;
+						break;
+					}
+				}
+				tipoContratoCbx_changeHandler(null);
+			}
+			
+			private function selectedRanger():void{
+				var rangerList:ArrayCollection = ArrayCollection(range.dataProvider);
+				for(var i:int=0; i < rangerList.length; i++){
+					var rg:RangerBean = RangerBean(rangerList.getItemAt(i));
+					if(contrato.beginRanger == rg.beginRanger && contrato.endRanger == rg.endRanger){
+						range.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedParcelas():void{
+				var parcelasList:ArrayCollection = ArrayCollection(parcelasCbx.dataProvider);
+				for(var i:int=0; i < parcelasList.length; i++){
+					if(contrato.qtdParcelas == parcelasList.getItemAt(i).valor){
+						parcelasCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedPrecoEspecial():void{
+				var precoList:ArrayCollection = ArrayCollection(precoEspecialCbx.dataProvider);
+				for(var i:int=0; i < precoList.length; i++){
+					if(contrato.idConfigPreco == precoList.getItemAt(i).idPrecoConfig){
+						precoEspecialCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function selectedClassificacao():void{
+				var classificacaoList:ArrayCollection = ArrayCollection(classificacaoCbx.dataProvider);
+				for(var i:int=0; i < classificacaoList.length; i++){
+					if(contrato.siglaClassificacaoContrato == ClassificacaoBean(classificacaoList.getItemAt(i)).sigla){
+						classificacaoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedTerritorio():void{
+				var territorioList:ArrayCollection = ArrayCollection(territorioCbx.dataProvider);
+				for(var i:int=0; i < territorioList.length; i++){
+					if(contrato.isTerritorio == (territorioList.getItemAt(i)).sigla){
+						territorioCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function motivoNaoFechamentoContrato():void{
+				var mnfcList:ArrayCollection = ArrayCollection(motNaoFecContratoCbx.dataProvider);
+				for(var i:int=0; i < mnfcList.length; i++){
+					if(contrato.idMotNaoFecContrato == MotNaoFecContratoBean(mnfcList.getItemAt(i)).id){
+						motNaoFecContratoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function selectedConfigTracao():void{
+				var tracaoList:ArrayCollection = ArrayCollection(tracaoCbx.dataProvider);
+				for(var i:int=0; i < tracaoList.length; i++){
+					if(contrato.idConfigTracao == ConfigurarTracaoBean(tracaoList.getItemAt(i)).id){
+						tracaoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			
+			
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				if(event.result != null){
+					classificacaoCbx.enabled = false;
+					contrato = ContratoComercialBean(event.result);
+					
+					
+					//Alert.show("Contrato salvo com sucesso!", "Alerta");
+					precoManutImg.visible = true;
+					numeroContrato.text = contrato.numeroContrato;
+					//gridPesquisaContrato.dataProvider = null;
+					tipoContratoCbx_changeHandler(null);
+					valorContrato = new ValorContrato();
+					valorContrato.addEventListener(CloseEvent.CLOSE, removePopUpValorContrato);
+					PopUpManager.addPopUp(valorContrato,this,true);
+					PopUpManager.centerPopUp(valorContrato);
+					valorContrato.init(urlLogin, parcelasCbx.selectedItem.valor,contrato, TipoContratoBean(tipoContratoCbx.selectedItem).sigla, this._usuarioBean);
+					if(statusContratoCbx.selectedIndex > 0 && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CA'){ 
+						//&& (contrato.valorContrato != null && contrato.valorContrato != "")){
+						salvarContrato.includeInLayout = false;
+						salvarContrato.visible = false;
+//						if(TipoContratoBean(tipoContratoCbx.selectedItem).sigla == 'VEN'){
+//							revisaoContrato.includeInLayout = true;
+//							revisaoContrato.visible = true;
+//							revisaoCliente.text = String(contrato.printRevisaoPosPago);
+//						}
+						
+						
+					}else{
+						//revisaoContrato.includeInLayout = false;
+						//revisaoContrato.visible = false;
+						salvarContrato.includeInLayout = true;
+						salvarContrato.visible = true;
+					}
+//					if(statusContratoCbx.selectedIndex > 0 && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CA'){
+//						manutHoras.enabled = false;
+//						//manutHoras.editable = false;
+//					}
+//					var tipoContrato:TipoContratoBean = TipoContratoBean(tipoContratoCbx.selectedItem);
+//					if(tipoContrato.sigla != 'CON'){
+//						precoManutImg.includeInLayout = true;
+//						precoManutImg.visible = true;
+//						parcelasCbx.enabled = true;
+//					}
+					return;
+				}
+				ProgressBarHelper.removeProgressBar();
+				Alert.show("Não foi possível salvar contrato!", "Alerta");
+			}
+			
+			
+			[Bindable]
+			private var cliente:Cliente = new Cliente();
+			public function popupCliente(clienteList:ArrayCollection):void{
+				
+				cliente.addEventListener(CloseEvent.CLOSE, removePopUpCliente);
+				PopUpManager.addPopUp(cliente,this,true);
+				PopUpManager.centerPopUp(cliente)
+				cliente.percentWidth = 400;
+				cliente.percentHeight = 300;
+				cliente.init(clienteList);
+				
+				
+			}
+			private function removePopUpCliente(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(cliente.gridClientes != null && cliente.gridClientes.selectedItem != null && 
+					(ClienteBean(cliente.gridClientes.selectedItem).FLAGDELETE == 'N' || ClienteBean(cliente.gridClientes.selectedItem).FLAGDELETE == '')){
+					this.setCliente(ClienteBean(cliente.gridClientes.selectedItem));
+				}
+				
+			}
+			
+			private function validateHorasManut():Boolean{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var totalHoras:Number = 0;
+				var intervalo:Number = 0;
+				var frequencia:Number = 0;
+				var horasListSelected:ArrayCollection = new ArrayCollection();
+				for(var j:int = 0; j < horasList.length; j++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(j));
+					if(beanHoras.isSelected == true){
+						horasListSelected.addItem(beanHoras);
+					}
+				}
+				if(horasListSelected.length > 2){
+					var beanHorasFim:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasListSelected.length));
+					var beanHorasInicio:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasListSelected.length-1));
+					frequencia = beanHorasFim.horas - beanHorasInicio.horas;
+				}
+				for(var i:int = 0; i < horasList.length; i++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					if(i == 0){
+						var beanHorasProximo:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i+1));
+						if(beanHoras.horas < beanHorasProximo.horas){
+							intervalo = beanHorasProximo.horas - beanHoras.horas;
+						}else{
+							intervalo = beanHorasProximo.horas;
+						}
+						
+					} else if(i == 1){
+						var beanHorasAnterior:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i-1));
+						if(beanHoras.horas > beanHorasAnterior.horas){
+							intervalo = beanHoras.horas - beanHorasAnterior.horas ;
+							if(frequencia == beanHorasProximo.horas){
+								intervalo = frequencia;
+							}
+						}else{
+							intervalo = beanHorasAnterior.horas;
+						}
+					}else{
+						var beanHorasUltima:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasList.length - 1));
+						var beanHorasPenultima:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasList.length - 2));
+						intervalo = beanHorasUltima.horas - beanHorasPenultima.horas;
+					}
+					if(beanHoras.isSelected == true){
+						totalHoras+=intervalo;
+					}
+				}
+				var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(0));
+				//				if(beanHoras.isSelected == false){
+				//					totalHoras -= intervalo;
+				//				}
+				if(frequencia == 400 && totalHoras < 1400){
+					return false;
+				}
+				if(frequencia != 400 && totalHoras < 2000){
+					return false;
+				}
+				return true;
+			}
+			
+			private function validateHorasManutGerador():Boolean{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var totalHoras:Number = 0;
+				var intervalo:Number = 0;
+				var frequencia:Number = 0;
+				var horasListSelected:ArrayCollection = new ArrayCollection();
+				for(var j:int = 0; j < horasList.length; j++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(j));
+					if(beanHoras.isSelected == true){
+						horasListSelected.addItem(beanHoras);
+					}
+				}
+				if(horasListSelected.length > 2){
+					var beanHorasFim:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasListSelected.length));
+					var beanHorasInicio:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasListSelected.length-1));
+					frequencia = beanHorasFim.horas - beanHorasInicio.horas;
+				}
+				
+				for(var i:int = 0; i < horasList.length; i++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					
+					if(i == 0){
+						var beanHorasProximo:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i+1));
+						if(beanHoras.horas < beanHorasProximo.horas){
+							intervalo = beanHorasProximo.horas - beanHoras.horas;
+						}else{
+							intervalo = beanHorasProximo.horas;
+						}
+						
+					} else if(i == 1){
+						var beanHorasAnterior:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i-1));
+						if(beanHoras.horas > beanHorasAnterior.horas){
+							intervalo = beanHoras.horas - beanHorasAnterior.horas ;
+							if(frequencia == beanHorasProximo.horas){
+								intervalo = frequencia;
+							}
+						}else{
+							intervalo = beanHorasAnterior.horas;
+						}
+					}else{
+						var beanHorasUltima:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasList.length - 1));
+						var beanHorasPenultima:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(horasList.length - 2));
+						intervalo = beanHorasUltima.horas - beanHorasPenultima.horas;
+					}
+					if(beanHoras.isSelected == true){
+						totalHoras+=intervalo;
+					}
+				}
+				var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(0));
+				//				if(beanHoras.isSelected == false){
+				//					totalHoras -= intervalo;
+				//				}
+				if(totalHoras < 1000){
+					return false;
+				}
+				return true;
+			}
+
+			private function validarHorimetroIntervaloHoras():Boolean{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var result:ArrayCollection = new ArrayCollection();
+				var beanHoras:ConfigManutencaoHorasBean = new ConfigManutencaoHorasBean();
+				var frequencia:Number = 0;
+				var horimetroReferencia:Number = Number(horimetro.text);
+				for(var i:int = 0; i < horasList.length; i++){
+					beanHoras = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					frequencia = beanHoras.frequencia;
+					if(beanHoras.isSelected == true){
+						result.addItem(ObjectUtil.copy(beanHoras));
+						if(Number(horimetro.text) > beanHoras.horasManutencao){
+							return false;
+						}
+					}else if(i == 0 && Number(horimetro.text) < beanHoras.horasManutencao){
+						return false;
+					}
+				}
+				var beanHorasAux:ConfigManutencaoHorasBean = result.getItemAt(0) as ConfigManutencaoHorasBean;
+				
+				if(Number(horimetro.text) > beanHorasAux.horasManutencao || (Number(horimetro.text)+frequencia) < beanHorasAux.horasManutencao){
+					return false;
+				}
+				beanHoras = new ConfigManutencaoHorasBean();
+				beanHorasAux = new ConfigManutencaoHorasBean();
+				for(var j:int = 0; j < result.length; j++){
+					if(j+1 == result.length ){
+						return true;
+					}
+					
+					beanHoras = result.getItemAt(j) as ConfigManutencaoHorasBean;
+					beanHorasAux = result.getItemAt(j+1) as ConfigManutencaoHorasBean;
+					frequencia = beanHoras.frequencia;
+					if(j > 0 && (beanHoras.horasManutencao + frequencia) != beanHorasAux.horasManutencao){
+						return false;
+					}
+					if(j == 0){
+						frequencia = beanHoras.frequencia;
+						if((beanHoras.horasManutencao + frequencia) != beanHorasAux.horasManutencao){
+							return false;
+						}
+					}
+				}
+				return true;
+				
+				
+			}
+			
+			
+			
+			private function validateMultiplo2000():Boolean{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var horas:Number = 0;
+				for(var i:int = 0; i < horasList.length; i++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					if(beanHoras.isSelected == true){
+						horas = beanHoras.horasManutencao;
+					}
+				}
+				if((horas % 2000) != 0)
+				{
+					return false;
+				}
+				return true;
+			}
+
+
+			private function findStandardJob():ArrayCollection{
+				var horasList:ArrayCollection = ArrayCollection(manutHoras.dataProvider);
+				var standardJobList:ArrayCollection = new ArrayCollection();
+				var isPosPago:Boolean = false;
+				for(var i:int = 0; i < horasList.length; i++){
+					var beanHoras:ConfigManutencaoHorasBean = ConfigManutencaoHorasBean(horasList.getItemAt(i));
+					if(beanHoras.isSelected == true){
+						if(TipoContratoBean(tipoContratoCbx.selectedItem).sigla == 'VEN' && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CA'){
+							isPosPago = true;
+						}
+						standardJobList.addItem(beanHoras);
+					}else if(isPosPago == true){
+						standardJobList.addItem(beanHoras);
+					}
+				}
+				return standardJobList;
+			}
+			
+			private function saveCotratoAlert():void{
+			
+				var stc:StatusContratoBean = StatusContratoBean(statusContratoCbx.selectedItem);
+				if(stc != null && stc.sigla == 'CA'){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("Deseja realmente ativar o contrato?\nDepois que estiver aberto não é mais possível alterá-lo.", "Alerta", 3, this, alertClickHandlerAtivarContrato);	
+				}else{
+					saveContrato("S");
+				}
+			}
+			
+			private function alertClickHandlerAtivarContrato(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					saveContrato("S");
+				}
+			}
+			
+			private var isSaveHorasPosPago:String = "N";
+			
+			private function saveContrato(isSaveHorasPosPago:String):void {
+				
+				if(territorioCbx.selectedItem.sigla == 'S' && ClassificacaoBean(classificacaoCbx.selectedItem).sigla == 'CUSLIGHT' && this._usuarioBean.siglaPerfil == 'CON'){
+					Alert.show("O perfil de consultor não pode criar contrato de  Customer Light dentro do território!", "Alerta");
+					return;
+				}
+				
+				this.isSaveHorasPosPago = isSaveHorasPosPago;
+				contrato.isGeradorStandby = false;
+				if(!this._usuarioBean.isAdm && statusContratoCbx.selectedItem != null && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CA'){
+					Alert.show("Somente o Administrador pode mudar o status do contrato para aberto!", "Alerta");
+					return;
+				}
+				if(tracaoCbx.dataProvider != null && tracaoCbx.selectedIndex == -1 && ArrayCollection(tracaoCbx.dataProvider).length > 0){
+					Alert.show("Selecione um Tipo de Tração para o contrato!", "Alerta");
+					return;
+				}
+				myValidators = new Array();
+				if(bgCbx.selectedItem == null){
+					Alert.show("Selecione um Business Group para o contrato!", "Alerta");
+					return;
+				}
+				if(statusContratoCbx.selectedItem == null){
+					Alert.show("Selecione um status para o contrato!", "Alerta");
+					return;
+				}
+				if(tempoCbx.selectedItem.sigla == 'S' && mediaHorasMes.text == ''){
+					Alert.show("O Campo Média Horas Mensal é Obrigatório!", "Alerta");
+					return;
+				}
+				
+//				if(Number(parcelasCbx.selectedItem.valor) > 6 && !this._usuarioBean.isAdm){
+//					Alert.show("Somente o administrador pode criar contrato com parcelas maior que 6!", "Alerta");
+//					return;
+//				}
+				if(statusContratoCbx.selectedItem != null && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CNA'){
+					myValidators.push(campoMotNaoFecContratoCbx);
+				}
+				if(statusContratoCbx.selectedItem != null && StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CEN' || StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CNA'){
+//					myValidators.push(campofamiliaCbx);
+//					myValidators.push(campoModeloCbx);
+//					myValidators.push(campoPrefixoCbx);
+//					myValidators.push(campoBgCbx);
+//					myValidators.push(campoRanger);
+//					myValidators.push(campoHorimetro);
+//					
+//					if(frmDistanciaGerador.visible)
+//					{
+//						myValidators.push(campoDistanciaGerador);
+//					}
+//					
+//					myValidators.push(campoCodigoCliente);
+//					myValidators.push(campoTipoContrato);
+//					myValidators.push(campoStatusContrato);
+//					myValidators.push(campoRazaoSocial);
+//					myValidators.push(campoUf);
+//					myValidators.push(campoCep);
+//					myValidators.push(campoTelComercial);
+//					myValidators.push(campoProcurador);
+					myValidators.push(campofamiliaCbx);
+					myValidators.push(campoModeloCbx);
+					myValidators.push(campoPrefixoCbx);
+					myValidators.push(campoBgCbx);
+					myValidators.push(campoNumeroSerie);
+					myValidators.push(campoRanger);
+					myValidators.push(campoHorimetro);
+					
+					if(frmDistanciaGerador.visible)
+					{
+						myValidators.push(campoDistanciaGerador);
+					}
+					
+					myValidators.push(campoCodigoCliente);
+					myValidators.push(campoTipoContrato);
+					myValidators.push(campoClassificacao);
+					myValidators.push(campoTerritorio);
+					myValidators.push(campoStatusContrato);
+					myValidators.push(campoRazaoSocial);
+					myValidators.push(campoFabricante);
+					myValidators.push(campoUf);
+					myValidators.push(campoCidade);
+					myValidators.push(campoEndereco);
+					myValidators.push(campoBairro);
+					myValidators.push(campoCep);
+					myValidators.push(campoTelComercial);
+					myValidators.push(campoEmailContatoComercial);
+					//myValidators.push(campoFaxComercial);
+					myValidators.push(campoContatoServicos);
+					myValidators.push(campoTelServicos);
+					myValidators.push(campoEmailContatoServicos);
+					//myValidators.push(campoFaxServicos);
+					myValidators.push(campoInscEstadual);
+					myValidators.push(campoInscMunicipal);
+					myValidators.push(campoContribuinte);
+					myValidators.push(campoProcurador);
+					myValidators.push(campoCpf);
+					myValidators.push(campoCnpj);
+				}else{
+					
+					myValidators.push(campofamiliaCbx);
+					myValidators.push(campoModeloCbx);
+					myValidators.push(campoPrefixoCbx);
+					myValidators.push(campoBgCbx);
+					myValidators.push(campoNumeroSerie);
+					myValidators.push(campoRanger);
+					myValidators.push(campoHorimetro);
+					
+					if(frmDistanciaGerador.visible)
+					{
+						myValidators.push(campoDistanciaGerador);
+					}
+					
+					myValidators.push(campoCodigoCliente);
+					myValidators.push(campoTipoContrato);
+					myValidators.push(campoClassificacao);
+					myValidators.push(campoTerritorio);
+					myValidators.push(campoStatusContrato);
+					myValidators.push(campoRazaoSocial);
+					myValidators.push(campoFabricante);
+					myValidators.push(campoUf);
+					myValidators.push(campoCidade);
+					myValidators.push(campoEndereco);
+					myValidators.push(campoBairro);
+					myValidators.push(campoCep);
+					myValidators.push(campoTelComercial);
+					myValidators.push(campoEmailContatoComercial);
+					//myValidators.push(campoFaxComercial);
+					myValidators.push(campoContatoServicos);
+					myValidators.push(campoTelServicos);
+					myValidators.push(campoEmailContatoServicos);
+					//myValidators.push(campoFaxServicos);
+					myValidators.push(campoInscEstadual);
+					myValidators.push(campoInscMunicipal);
+					myValidators.push(campoContribuinte);
+					myValidators.push(campoProcurador);
+					myValidators.push(campoCpf);
+					myValidators.push(campoCnpj);
+					
+				}
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {
+					//if(BusinessGroupBean(bgCbx.selectedItem).descricao != 'KIT2' && BusinessGroupBean(bgCbx.selectedItem).descricao != 'KIT3' )
+					if(String (tempoCbx.selectedLabel) == 'Sim' &&  FamiliaBean(familiaCbx.selectedItem).descricao == 'MOTOR IND./ MOTOR GERADOR'){
+						if(this.validateHorasManutGerador() == false){
+							Alert.show("Não é premitido selcionar um intervalo de horas menor que 1000 para gerador!", "Alerta");
+							return
+						}
+					}else	if(this.validateHorasManut() == false){
+						Alert.show("Não é premitido selcionar um intervalo de horas menor que 2000!", "Alerta");
+						return;
+					}
+
+						if(validarHorimetroIntervaloHoras() == false){
+							Alert.show("O horímetro não está conforme o intervalo de manutenção selecionado!", "Alerta");
+							return;
+						}
+						if(territorioCbx.selectedItem.sigla == 'S' && ClassificacaoBean(classificacaoCbx.selectedItem).sigla == 'CUS'){
+//							if(this.validateMultiplo2000() == false){
+//								Alert.show("A ultima revisão vendida tem que ser múltiplo de 2000!", "Alerta");
+//								return;
+//							}
+						}
+						contrato.cep = cep.text.toUpperCase();
+						contrato.fabricante = fabricante.text.toUpperCase();
+						contrato.uf = uf.text.toUpperCase();
+						contrato.idTipoContrato = Number(TipoContratoBean(tipoContratoCbx.selectedItem).id);
+						contrato.siglaClassificacaoContrato = ClassificacaoBean(classificacaoCbx.selectedItem).sigla;
+						contrato.isTerritorio = territorioCbx.selectedItem.sigla;
+						
+						contrato.statusContrato = Number(StatusContratoBean(statusContratoCbx.selectedItem).id);
+						contrato.TA = (checkTa.selected == true)?'S':'N';
+						contrato.businessGroup = BusinessGroupBean(bgCbx.selectedItem).descricao;
+						contrato.horimetro = Number(horimetro.text);
+						contrato.distanciaGerador = distanciaGerador.text as Number;
+						contrato.numeroSerie = numeroSerie.text.toUpperCase();
+						contrato.modelo = ModeloBean(modeloCbx.selectedItem).descricao.toUpperCase();
+						contrato.telComercial = telComercial.text.toUpperCase();
+						contrato.razaoSocial = razaoSocial.text.toUpperCase();
+						//contrato.contatoComercial = contatoComercial.text.toUpperCase();
+						contrato.familia = FamiliaBean(familiaCbx.selectedItem).descricao;
+						contrato.idFamilia = FamiliaBean(familiaCbx.selectedItem).id;
+						contrato.configManutencaoHorasBeanList = this.findStandardJob();
+						contrato.qtdParcelas = Number(parcelasCbx.selectedItem.valor);
+						contrato.prefixo = PrefixoBean(prefixoCbx.selectedItem).descricao;
+						contrato.beginRanger = RangerBean(range.selectedItem).beginRanger;
+						contrato.endRanger = RangerBean(range.selectedItem).endRanger;
+						contrato.financiado = (parcelasCbx.selectedItem.valor > 1)?'S':'N';
+						contrato.contExcessao = (contExcessao.selected)?'S':'N';
+						
+						
+						if(StatusContratoBean(statusContratoCbx.selectedItem).sigla == 'CNA'){
+							contrato.idMotNaoFecContrato = MotNaoFecContratoBean(motNaoFecContratoCbx.selectedItem).id;
+						}
+						contrato.codigoCliente = codigoCliente.text;
+						contrato.cidade = cidade.text.toUpperCase();
+						contrato.endereco = endereco.text.toUpperCase();
+						contrato.bairro = bairro.text.toUpperCase();
+						contrato.cnpj = cnpj.text.toUpperCase();
+						contrato.inscEstadual = inscEstadual.text.toUpperCase();
+						contrato.inscMunicipal = inscMunicipal.text.toUpperCase();
+						contrato.contribuinte = contribuinte.text.toUpperCase();
+						contrato.procurador = procurador.text.toUpperCase();
+						contrato.cpf = cpf.text.toUpperCase();
+						contrato.emailComercial = emailContatoComercial.text.toUpperCase();
+						contrato.contatoServicos = contatoServicos.text.toUpperCase();
+						contrato.emailServicos = emailContatoServicos.text.toUpperCase();
+						contrato.telServicos = telServicos.text.toUpperCase();
+						//contrato.faxComercial = faxComercial.text.toUpperCase();
+						//contrato.faxServicos = faxServicos.text.toUpperCase();
+						contrato.condExcepcional = condExcepcional.text;
+						contrato.descricaoStatusContrato = statusContratoCbx.selectedItem.descricao;
+						contrato.funcionarioIndicado = this.indicadoBean.nome;
+						contrato.matriculaIndicado = this.indicadoBean.matricula;
+						contrato.emailCheckList = emailCheckList.text;
+						contrato.idConfigPreco = ConfigManutencaoBean(precoEspecialCbx.selectedItem).idPrecoConfig;
+						if(tracaoCbx.dataProvider != null && tracaoCbx.selectedIndex != -1 && ArrayCollection(tracaoCbx.dataProvider).length > 0){
+							contrato.idConfigTracao = ConfigurarTracaoBean(tracaoCbx.selectedItem).id;
+						}else{
+							contrato.idConfigTracao = null;
+						}
+						//Envia o tipo de customização se existir
+						if(listTipoCustomizacao.length > 0){
+							contrato.tipoCustomizacaoList = ArrayCollection(tipoCustomizacaoList.dataProvider);
+						}else{
+							contrato.tipoCustomizacaoList = new ArrayCollection();
+						}
+						
+						if(contrato.isFindSubstuicaoTributaria == 'P' && contrato.codErroDbs == '100'){
+							Alert.show("Não é possível efetuar a operação enquanto o valor da substituição tributária não retornar!", "Alrta");
+							return;
+						}else if(aplicarSubstituicaoTributariaCbx.selected){
+							contrato.isFindSubstuicaoTributaria = 'P';							
+						}else if(retirarSubstituicaoTributariaCbx.selected){
+							contrato.isFindSubstuicaoTributaria = 'R';							
+						}
+						
+						if(String (tempoCbx.selectedLabel) == 'Sim'){
+							contrato.mediaHorasMes =Number( mediaHorasMes.text);
+							contrato.possuiHorasMes = 'S';
+						}else if(String (tempoCbx.selectedLabel) == 'Não'){
+							contrato.possuiHorasMes = 'N';
+						}
+						this.validarRenovacaoContrato();
+					
+				} else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+				
+				
+			}
+			
+			
+			
+			private function validarRenovacaoContrato():void{
+				serviceController.validarRenovacaoContrato(contrato);
+			}
+			
+			private function onResultValidarRenovacaoContrato(event:ResultEvent):void{
+				contrato = ContratoComercialBean(event.result);
+				if(contrato.msg != null && contrato.msg.length > 0){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";
+					Alert.show(contrato.msg+"?", "Alerta", 3, this, alertClickHandler);
+				}else{
+					serviceController.saveOrUpdate(contrato, this.isSaveHorasPosPago);
+				}
+			}
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.saveOrUpdate(contrato, this.isSaveHorasPosPago);
+				}else{
+					ProgressBarHelper.removeProgressBar();
+				}
+			}
+			
+			private function novoContrato():void{
+				this.indicadoBean = new UsuarioBean();
+				classificacaoCbx.selectedIndex = -1;
+				territorioCbx.selectedIndex = 0;
+				territorioCbx.enabled = false;
+				funcionarioIndicado.text = null;
+				//revisaoContrato.includeInLayout = false;
+				//revisaoContrato.visible = false;
+				manutHoras.enabled = true;
+				//manutHoras.editable = true;
+				//aplicarSubstituicaoTributariaCbx.selected = false;
+				//retirarSubstituicaoTributariaCbx.selected = false;
+				
+				//aplicarSubstituicaoTributariaForm.includeInLayout = true;
+				//aplicarSubstituicaoTributariaForm.visible = true;
+				//retirarSubstituicaoTributariaForm.includeInLayout = true;
+				//retirarSubstituicaoTributariaForm.visible = true;
+				formTracao.includeInLayout = false;
+				formTracao.visible = false;
+				
+				formTipoCustomizacao.includeInLayout = false;
+				formTipoCustomizacao.visible = false;
+				
+				precoManutImg.visible = false;
+				salvarContrato.includeInLayout = true;
+				salvarContrato.visible = true;
+				contrato = new ContratoComercialBean();
+				numeroContrato.text = "";
+				contExcessao.selected = true;
+				changeContratoExcessao();
+				//nomeCliente.text = "";
+				motNaoFecContratoCbx.selectedIndex = -1;
+				formNaoFecContrato.includeInLayout = false;
+				formNaoFecContrato.visible= false;
+				tipoContratoCbx.selectedIndex = -1;
+				statusContratoCbx.selectedIndex = -1;
+				parcelasCbx.selectedIndex = -1;
+				checkTa.selected = false;
+				bgCbx.selectedIndex = -1;
+				horimetro.text = "";
+				distanciaGerador.text = "";
+				mediaHorasMesForm.includeInLayout = false;			
+				mediaHorasMesForm.visible = false;			
+				tempoCbx.selectedIndex = 0; 
+				mediaHorasMes.text="";
+				
+				frmDistanciaGerador.includeInLayout = false;
+				frmDistanciaGerador.visible = false;
+				
+				numeroSerie.text = "";
+				modeloCbx.selectedIndex = -1;
+				telComercial.text = "";
+				razaoSocial.text = "";
+				contatoServicos.text = "";
+				//contatoComercial.text = "";
+				familiaCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				//parcelas.selectedIndex = -1;
+				comboPrefixo.removeAll();
+				//prefixoCbx.dataProvider = null;
+				range.dataProvider = null;
+				contrato.endRanger = "";
+				//parcelas.text = ""
+				codigoCliente.text = "";
+				cidade.text = "";
+				endereco.text = "";
+				bairro.text = "";
+				cnpj.text = "";
+				inscEstadual.text = "";
+				inscMunicipal.text = "";
+				contribuinte.text = "";
+				procurador.text = "";
+				cpf.text.toUpperCase();
+				emailContatoComercial.text = "";
+				emailContatoServicos.text = "";
+				telServicos.text = "";
+				cep.text = "";
+				fabricante.text = "";
+				uf.text = "";
+				//faxServicos.text = "";
+				condExcepcional.text = "";
+				cpf.text = "";
+				emailCheckList.text="";
+				if(comboPrecoEspecial.length > 0){
+					comboPrecoEspecial.removeAll();
+				}
+				
+			}
+			private function onResultFindDataCliente(event:ResultEvent):void{
+				if((event.result as ClienteBean).msg != null){
+					Alert.show((event.result as ClienteBean).msg, "Alerta");
+					return;
+				}
+				this.setCliente(event.result as ClienteBean);
+			}
+			
+			private function setCliente(cliente:ClienteBean):void{
+				contrato.cliente = cliente;
+				razaoSocial.text = cliente.RAZSOC;
+				cidade.text = cliente.CID;
+				endereco.text = cliente.END;
+				bairro.text = cliente.BAIRRO;
+				codigoCliente.text = cliente.CLCHAVE;
+				cpf.text = cliente.CPF;
+				cnpj.text = cliente.CNPJ;
+				inscEstadual.text = cliente.INSCEST;
+				inscMunicipal.text = cliente.INSCMUN;
+				uf.text = cliente.EST;
+				cep.text = cliente.CEP;
+				if(cliente.INDCONT == 'S'){
+					contribuinte.text = "SIM";
+				}else{
+					contribuinte.text = "NÃO";
+				}
+			}
+			[Bindable]
+			private var comboTracao:ArrayCollection = new ArrayCollection();	
+			[Bindable]
+			private var listTipoCustomizacao:ArrayCollection = new ArrayCollection();	
+			private function onChangeModelo():void{
+				//bgCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				range.dataProvider = null;
+				fabricante.text = "";
+				serviceController.findAllPrefixosContrato(ModeloBean(modeloCbx.selectedItem).descricao, (contExcessao.selected == true)?'S':'N');
+				serviceController.findAllConfigTracao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				serviceController.findAllConfigCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+			}
+			private function onResultFindAllConfigTracao(event:ResultEvent):void{
+				var result:ArrayCollection = ArrayCollection(event.result);
+				if(result.length > 0){
+					formTracao.includeInLayout = true;
+					formTracao.visible = true;
+				}else{
+					formTracao.includeInLayout = false;
+					formTracao.visible = false;
+				}
+				comboTracao.removeAll();
+				comboTracao.addAll(ArrayCollection(event.result));
+				tracaoCbx.dataProvider = comboTracao;
+			}
+			
+			private function onResultFindAllConfigCustomizacao(event:ResultEvent):void{
+				var result:ArrayCollection = ArrayCollection(event.result);
+				if(result.length > 0){
+					formTipoCustomizacao.includeInLayout = true;
+					formTipoCustomizacao.visible = true;
+				}else{
+					formTipoCustomizacao.includeInLayout = false;
+					formTipoCustomizacao.visible = false;
+				}
+				listTipoCustomizacao.removeAll();
+				listTipoCustomizacao.addAll(ArrayCollection(event.result));
+				tipoCustomizacaoList.dataProvider = listTipoCustomizacao;
+			}
+			
+			private function onChangePrefixo():void{
+				//bgCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				serviceController.findAllPrecoEspecialPromocao(ModeloBean(modeloCbx.selectedItem).descricao,PrefixoBean(prefixoCbx.selectedItem).descricao,(contExcessao.selected == true)?'S':'N', FamiliaBean(familiaCbx.selectedItem).id);
+				
+			}
+			
+			private function onChangePrecoEspecial():void{
+				//bgCbx.selectedIndex = -1;
+				manutHoras.dataProvider = null;
+				range.dataProvider=null;
+				serviceController.findAllRangerContrato(ModeloBean(modeloCbx.selectedItem).descricao, PrefixoBean(prefixoCbx.selectedItem).descricao, (contExcessao.selected == true)?'S':'N',ConfigManutencaoBean(precoEspecialCbx.selectedItem).idPrecoConfig);
+				serviceController.findFabricante(PrefixoBean(prefixoCbx.selectedItem).descricao);
+				
+			}
+			
+			private function onResultFindFabricante(event:ResultEvent):void{
+				fabricante.text = String(event.result);			
+			}
+			
+			private function findCliente():void{
+				if(clienteText.text == ""){
+					Alert.show("O campo de cliente deve ser preenchido!");
+					return;
+				}
+				if(answers.selection.id == "codigo"){
+					serviceController.findDataCliente(clienteText.text);
+				}else{
+					serviceController.findDataNomeCliente(clienteText.text);
+				}
+				
+			}
+			private function popularManutHoras():void{
+				if(bgCbx.selectedItem != null){
+					serviceController.findAllManutencaoHoras(ModeloBean(modeloCbx.selectedItem).descricao, PrefixoBean(prefixoCbx.selectedItem).descricao, RangerBean(range.selectedItem).beginRanger, RangerBean(range.selectedItem).endRanger, BusinessGroupBean(bgCbx.selectedItem).descricao,(contExcessao.selected == true)?'S':'N',ConfigManutencaoBean(precoEspecialCbx.selectedItem).idPrecoConfig);
+				}else{
+					range.selectedIndex = -1;
+					Alert.show("Por favor selecione um Business Group!", "Alerta");
+				}
+			}
+			private function changeContratoExcessao():void{
+				contratoPdf.visible = false;
+				var isExcessao:String = (contExcessao.selected == true)?'S':'N';
+				if(isExcessao == 'S'){
+					this.selectedBusinessSev();
+				}else{
+					this.selectedBusinessPM();
+				}
+				comboFamilia.removeAll();
+				serviceController.findAllFamiliaPromocao(isExcessao);
+				familiaCbx.selectedIndex = -1;
+				modeloCbx.selectedIndex = -1;
+				comboModelo.removeAll();
+			}
+			
+		
+			
+			private var pesquisaContrato:PesquisaContratoEspecialPromocao = new PesquisaContratoEspecialPromocao();
+			private function pesquisa_clickHandler(event:MouseEvent):void{
+				pesquisaContrato.addEventListener(CloseEvent.CLOSE, removePopUpPesquisaContrato);
+				PopUpManager.addPopUp(pesquisaContrato,this,true);
+				pesquisaContrato.width= 1000;
+				pesquisaContrato.height = 600;
+				PopUpManager.centerPopUp(pesquisaContrato)
+				pesquisaContrato.init(urlLogin, urlReport);
+				//pesquisaContrato.gridPesquisaContrato.dataProvider = event.result;
+			}
+			private function removePopUpPesquisaContrato(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(pesquisaContrato.contrato != null){
+					contrato = pesquisaContrato.contrato;
+					setContrato();
+				}
+			}
+			public function generatePDF(tipoContrato:String):void
+			{		
+				if(contrato.isFindSubstuicaoTributaria != null && contrato.isFindSubstuicaoTributaria == 'P'){
+					Alert.show("Não é possível efetuar a operação enquanto o valor da substituição tributária não retornar!", "Alerta");
+					return;
+				}
+				var uv:URLVariables = new URLVariables();
+				uv.idStatusContrato = contrato.statusContrato;
+				uv.idContrato = contrato.id;
+				uv.isAdministrador = tipoContrato;
+				
+				var url:URLRequest = new URLRequest(urlReport);
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+			private function changeComboStatus():void{
+				
+				if(statusContratoCbx.selectedIndex > 0){
+					formNaoFecContrato.includeInLayout=(statusContratoCbx.selectedItem.sigla == 'CNA')?true:false; 
+					formNaoFecContrato.visible=(statusContratoCbx.selectedItem.sigla == 'CNA')?true:false
+				}else{
+					formNaoFecContrato.includeInLayout = false;
+					formNaoFecContrato.visible= false;
+				}
+				if(statusContratoCbx.selectedIndex != -1){
+					if(statusContratoCbx.selectedItem.sigla == 'CA' || statusContratoCbx.selectedItem.sigla == 'CNA'){
+						//aplicarSubstituicaoTributariaForm.includeInLayout = false;
+						//aplicarSubstituicaoTributariaForm.visible = false;
+						//aplicarSubstituicaoTributariaCbx.selected = false;
+						//retirarSubstituicaoTributariaForm.includeInLayout = false;
+						//retirarSubstituicaoTributariaForm.visible = false;
+						//retirarSubstituicaoTributariaCbx.selected = false;
+					} if(statusContratoCbx.selectedItem.sigla == 'CEN'){
+						//aplicarSubstituicaoTributariaForm.includeInLayout = true;
+						//aplicarSubstituicaoTributariaForm.visible = true;
+						//aplicarSubstituicaoTributariaCbx.selected = false;
+						//retirarSubstituicaoTributariaForm.includeInLayout = true;
+						//retirarSubstituicaoTributariaForm.visible = true;
+						//retirarSubstituicaoTributariaCbx.selected = false;
+					}	
+				}
+			}
+
+			
+			private function changeComboBg():void{
+				if(BusinessGroupBean(bgCbx.selectedItem).descricao == 'KIT3' || BusinessGroupBean(bgCbx.selectedItem).descricao == 'KIT2'){
+					manutHoras.enabled = false;
+					checkTa.selected = false;
+					checkTa.includeInLayout = false;
+					checkTa.visible = false;
+				}else{
+					manutHoras.enabled = true;
+					checkTa.includeInLayout = true;
+					checkTa.visible = true;
+				}
+			}
+			
+
+
+			protected function tipoContratoCbx_changeHandler(event:ListEvent):void
+			{
+				var tipoContrato:TipoContratoBean = TipoContratoBean(tipoContratoCbx.selectedItem);
+				if(tipoContrato.sigla == 'CON'){
+					//precoManutImg.includeInLayout = false;
+					//precoManutImg.visible = false;
+					parcelasCbx.selectedIndex = 0;
+					parcelasCbx.enabled = false;
+				}else{
+					if(!isNaN(contrato.id) && contrato.id > 0 && valorContrato.isEnableParcelas == true){
+						//precoManutImg.includeInLayout = true;
+						//precoManutImg.visible = true;
+					}
+						parcelasCbx.enabled = true;
+				}
+			}
+			private function selectedBusinessSev():void{
+				var bgList:ArrayCollection = ArrayCollection(bgCbx.dataProvider);
+				for(var i:int=0; i < bgList.length; i++){
+					var bg:BusinessGroupBean = BusinessGroupBean(bgList.getItemAt(i));
+					if('SEV' == bg.descricao){
+						bgCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedBusinessPM():void{
+				var bgList:ArrayCollection = ArrayCollection(bgCbx.dataProvider);
+				for(var i:int=0; i < bgList.length; i++){
+					var bg:BusinessGroupBean = BusinessGroupBean(bgList.getItemAt(i));
+					if('PM' == bg.descricao){
+						bgCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				
+				var texto: String =	FamiliaBean(familiaCbx.selectedItem).descricao;
+				formTracao.includeInLayout = false;
+				formTracao.visible = false;
+				formTipoCustomizacao.includeInLayout = false;
+				formTipoCustomizacao.visible = false;
+				fabricante.text = "";
+//				if(texto.indexOf("GERADOR") != -1) { 
+//					frmDistanciaGerador.visible = true;
+//					frmDistanciaGerador.includeInLayout = true;
+//					frmDistanciaGerador.required = true;
+//				} else {
+					distanciaGerador.text = "";
+					frmDistanciaGerador.visible = false;
+					frmDistanciaGerador.includeInLayout = false;
+					frmDistanciaGerador.required = false;
+				//}
+					
+				serviceController.findAllModelosContrato((contExcessao.selected == true)?'S':'N', familiaCbx.selectedItem.id, "N");
+				
+				
+			}
+			
+			private function findAllParcelas():void{
+				if(contrato.isFindSubstuicaoTributaria == 'P' ){
+					Alert.show("Não é possível efetuar a operação enquanto o valor da substituição tributária não retornar!", "Alerta");
+					return;
+				}
+				if(contrato.isFindSubstuicaoTributaria == 'S' ){
+					serviceController.findAllParcelasSubstituicaoTributaria(contrato.id)
+				}else{
+					serviceController.findAllParcelas(contrato.id)
+				}
+			}
+			
+			private var popUpPesquisarFuncionario:PopUpFuncionarioIndicado;
+			protected function pesquisarFuncionarioBtn_clickHandler(event:MouseEvent):void
+			{
+				popUpPesquisarFuncionario = new PopUpFuncionarioIndicado();
+				popUpPesquisarFuncionario.addEventListener(CloseEvent.CLOSE, removePesquisarFuncionarioPopUp);
+				PopUpManager.addPopUp(popUpPesquisarFuncionario, this, true);
+				PopUpManager.centerPopUp(popUpPesquisarFuncionario);
+				popUpPesquisarFuncionario.init(urlLogin);
+				
+			}
+			
+			private var indicadoBean:UsuarioBean = new UsuarioBean();
+			private function removePesquisarFuncionarioPopUp(obj:CloseEvent):void{
+				if(popUpPesquisarFuncionario.usuarioBean != null){
+					this.indicadoBean = popUpPesquisarFuncionario.usuarioBean;
+					funcionarioIndicado.text =  popUpPesquisarFuncionario.usuarioBean.nome;
+				}else{
+					this.indicadoBean = new UsuarioBean();
+					funcionarioIndicado.text = "";					
+				}
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);	
+			}
+			
+			protected function classificacaoCbx_changeHandler(event:ListEvent):void
+			{
+				var classificacao:ClassificacaoBean = ClassificacaoBean(classificacaoCbx.selectedItem);
+				if(classificacao.sigla == 'CUS' || classificacao.sigla == 'CUSLIGHT'){
+					territorioCbx.enabled = true;
+				}else{
+					territorioCbx.selectedIndex = 0;
+					territorioCbx.enabled = false;
+				}
+				tipoContratoCbx.enabled = true;
+				if(classificacao.sigla == 'CUS' || classificacao.sigla == 'PART' || classificacao.sigla == 'CUSLIGHT'){
+					if(territorioCbx.selectedItem.sigla == 'N' && (classificacao.sigla == 'CUS' || classificacao.sigla == 'CUSLIGHT')){
+						tipoContratoCbx.enabled = false;
+					}
+					this.selectedTipoContratoPartCust();
+				}
+			}
+			private function selectedTipoContratoPartCust():void{
+				var tpList:ArrayCollection = ArrayCollection(tipoContratoCbx.dataProvider);
+				for(var i:int=0; i < tpList.length; i++){
+					var tp:TipoContratoBean = TipoContratoBean(tpList.getItemAt(i));
+					if('VEN' == tp.sigla){
+						tipoContratoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+
+			protected function territorioCbx_changeHandler(event:ListEvent):void
+			{
+				var classificacao:ClassificacaoBean = ClassificacaoBean(classificacaoCbx.selectedItem);
+				if(territorioCbx.selectedItem.sigla == 'N' && (classificacao.sigla == 'CUS' || classificacao.sigla == 'CUSLIGHT')){
+					tipoContratoCbx.enabled = false;
+					this.selectedTipoContratoPartCust();
+				} else if(territorioCbx.selectedItem.sigla == 'S' && (classificacao.sigla == 'CUS' || classificacao.sigla == 'CUSLIGHT')){
+					tipoContratoCbx.enabled = true;
+				}
+			}
+			protected function tempoCbx_changeHandler(event:ListEvent):void
+			{
+				if(tempoCbx.selectedItem.sigla == 'S'){
+					mediaHorasMesForm.includeInLayout = true;
+					mediaHorasMesForm.visible = true;
+				}else{
+					mediaHorasMesForm.includeInLayout = false;
+					mediaHorasMesForm.visible = false;
+					mediaHorasMes.text = '';
+				}
+			}
+
+		]]>
+	</mx:Script>
+	
+	
+	<mx:ArrayCollection id="parcelasColl">
+		
+		<mx:Object label="1 Parcela" valor="1"/>
+		<mx:Object label="2 Parcela" valor="2"/>
+		<mx:Object label="3 Parcela" valor="3"/>
+		<mx:Object label="4 Parcela" valor="4"/>
+		<mx:Object label="5 Parcela" valor="5"/>
+		<mx:Object label="6 Parcela" valor="6"/>
+		<mx:Object label="7 Parcela" valor="7"/>
+		<mx:Object label="8 Parcela" valor="8"/>
+		
+		
+	</mx:ArrayCollection>  
+	<mx:ArrayCollection id="territorioColl">
+		<mx:Object label="Dentro Território" sigla="S"/>
+		<mx:Object label="Fora Território" sigla="N"/>
+		
+	</mx:ArrayCollection> 
+	
+	<mx:ArrayCollection id="tempoColl">
+		<mx:Object label="Não" sigla="N"/>
+		<mx:Object label="Sim" sigla="S"/>
+		
+	</mx:ArrayCollection>  
+	
+	<!--mx:StringValidator id="campoFamilia" requiredFieldError="Este campo  obrigatório!" required="true" source="{familia}" property="text" /-->
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoPrefixoCbx" source="{prefixoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoBgCbx" source="{bgCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoNumeroSerie" requiredFieldError="Este campo  obrigatório!" required="true" source="{numeroSerie}" property="text" />
+	<mx:NumberValidator id="campoRanger" source="{range}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoHorimetro" requiredFieldError="Este campo  obrigatório!" required="true" source="{horimetro}" property="text" />
+	<mx:StringValidator id="campoDistanciaGerador" requiredFieldError="Este campo  obrigatório!" required="true" source="{distanciaGerador}" property="text" />
+	<!--mx:NumberValidator id="campoParcelas" source="{parcelas}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" /-->
+	<mx:NumberValidator id="campoTipoContrato" source="{tipoContratoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoClassificacao" source="{classificacaoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoTerritorio" source="{territorioCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	
+	
+	
+	<mx:NumberValidator id="campoStatusContrato" source="{statusContratoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoMotNaoFecContratoCbx" source="{motNaoFecContratoCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	<mx:StringValidator id="campoRazaoSocial" requiredFieldError="Este campo  obrigatório!" required="true" source="{razaoSocial}" property="text" />
+	<mx:StringValidator id="campoCnpj" requiredFieldError="Este campo  obrigatório!" required="true" source="{cnpj}" property="text" />
+	<!--mx:StringValidator id="campoNomeCliente" requiredFieldError="Este campo  obrigatório!" required="true" source="{nomeCliente}" property="text" /-->
+	<mx:StringValidator id="campoCidade" requiredFieldError="Este campo  obrigatório!" required="true" source="{cidade}" property="text" />
+	<mx:StringValidator id="campoEndereco" requiredFieldError="Este campo  obrigatório!" required="true" source="{endereco}" property="text" />
+	<mx:StringValidator id="campoBairro" requiredFieldError="Este campo  obrigatório!" required="true" source="{bairro}" property="text" />
+	<!--mx:StringValidator id="campoContatoComercial" requiredFieldError="Este campo  obrigatório!" required="true" source="{contatoComercial}" property="text" /-->
+	<mx:StringValidator id="campoTelComercial" requiredFieldError="Este campo  obrigatório!" required="true" source="{telComercial}" property="text" />
+	<mx:EmailValidator id="campoEmailContatoComercial" requiredFieldError="Email inválido!" missingAtSignError="E-mail deve conter @" required="true" source="{emailContatoComercial}" property="text" />
+	<mx:StringValidator id="campoCep" requiredFieldError="Este campo  obrigatório!" required="true" source="{cep}" property="text" />
+	<mx:StringValidator id="campoContatoServicos" requiredFieldError="Este campo  obrigatório!" required="true" source="{contatoServicos}" property="text" />
+	<mx:StringValidator id="campoTelServicos" requiredFieldError="Email inválido!" required="true" source="{telServicos}" property="text" />
+	<mx:EmailValidator id="campoEmailContatoServicos" requiredFieldError="Este campo é obrigatório!" missingAtSignError="E-mail deve conter @" required="true" source="{emailContatoServicos}" property="text" />
+	<mx:StringValidator id="campoUf" requiredFieldError="Este campo  obrigatório!" required="true" source="{uf}" property="text" />
+	<mx:StringValidator id="campoFabricante" requiredFieldError="Este campo  obrigatório!" required="true" source="{fabricante}" property="text" />
+	<mx:StringValidator id="campoInscEstadual" requiredFieldError="Este campo  obrigatório!" required="true" source="{inscEstadual}" property="text" />
+	<mx:StringValidator id="campoInscMunicipal" requiredFieldError="Este campo  obrigatório!" required="true" source="{inscMunicipal}" property="text" />
+	<mx:StringValidator id="campoContribuinte" requiredFieldError="Este campo  obrigatório!" required="true" source="{contribuinte}" property="text" />
+	<mx:StringValidator id="campoProcurador" requiredFieldError="Este campo  obrigatório!" required="true" source="{procurador}" property="text" />
+	<mx:StringValidator id="campoCpf" requiredFieldError="Este campo  obrigatório!" required="true" source="{cpf}" property="text" />
+	<mx:StringValidator id="campoCodigoCliente" requiredFieldError="Este campo  obrigatório!" required="true" source="{codigoCliente}" property="text" />
+	<mx:NumberValidator id="campofamiliaCbx" source="{familiaCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelosContrato" result="onResultFindAllModelos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllPrefixosContrato" result="onResultFindAllPrefixos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllBusinessGroupContrato" result="onResultFindAllBusinessGroup(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllRangerContrato" result="onResultFindAllRanger(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTipoContrato" result="onResultFindAllTipoContrato(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllStatusContrato" result="onResultFindAllStatusContrato(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findDataCliente" result="onResultFindDataCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findDataNomeCliente" result="onResultFindDataNomeCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllManutencaoHoras" result="onResultFindAllManutencaoHoras(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);" />
+		<!--mx:method name="findAllContratoComercial" result="onResultFindAllContratoComercial(event);ProgressBarHelper.removeProgressBar()" /-->
+		<mx:method name="getUrlReportServer" result="onResultGetUrlReportServer(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllParcelas" result="onResultFindAllParcelas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllMotNaoFecContrato" result="onResultFindAllMotNaoFecContrato(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFamiliaPromocao" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="validarRenovacaoContrato" result="onResultValidarRenovacaoContrato(event);" />
+		<mx:method name="findAllParcelasSubstituicaoTributaria" result="onResultFindAllParcelas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigTracao" result="onResultFindAllConfigTracao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findFabricante" result="onResultFindFabricante(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigCustomizacao" result="onResultFindAllConfigCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllPrecoEspecialPromocao" result="onResultfindAllPrecoEspecial(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllClassificacao" result="onResultFindAllClassificacao(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="31" width="100%" horizontalScrollPolicy="auto" verticalScrollPolicy="auto" horizontalAlign="center">
+		<mx:Form>
+			<mx:FormItem label="Número Contrato" required="false" width="261">
+				<mx:Label text="" id="numeroContrato"/>
+			</mx:FormItem>
+			<mx:FormItem label="Controlar Tempo" required="true" >
+				<mx:ComboBox x="48" y="1" id="tempoCbx" dataProvider="{tempoColl}"  labelField="label"   prompt="Selecione" selectedIndex="-1" change="tempoCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo" includeInLayout="false" visible="false">
+				<mx:CheckBox label="APLICAÇÃO SEVERA" change="changeContratoExcessao()" id="contExcessao"/>
+			</mx:FormItem>
+			<mx:FormItem label="Família" required="true" >
+				<mx:ComboBox x="48" y="1" id="familiaCbx" dataProvider="{comboFamilia}"  labelField="descricao"   prompt="Selecione" selectedIndex="-1" change="familiaCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox x="48" y="1" id="modeloCbx" dataProvider="{comboModelo}" labelField="descricao" change="onChangeModelo()"  prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Customizações" id="formTipoCustomizacao" visible="false" includeInLayout="false">
+				<mx:List id="tipoCustomizacaoList" width="194" labelField="descricao" alternatingItemColors="[#EEEEEE, white]" rowCount="5" toolTip="Selecione as customizações de configurações!" height="76">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:CheckBox selectedField="isSelected"
+										 change="onChange(event);" selected="{data.isSelected}">
+								<mx:Script>
+									<![CDATA[
+										private function onChange(evt:Event):void {
+											data.isSelected = this.selected;
+										}
+									]]>
+								</mx:Script>
+							</mx:CheckBox>
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:List>
+			</mx:FormItem>
+			<mx:FormItem label="Tração" required="true" id="formTracao" visible="false" includeInLayout="false">
+				<mx:ComboBox x="48" y="1" id="tracaoCbx"  dataProvider="{comboTracao}" labelField="descricao" change=""  prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Prefixo" required="true">
+				<mx:ComboBox x="53" y="3" id="prefixoCbx" dataProvider="{comboPrefixo}" change="onChangePrefixo()" labelField="descricao"  prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Business Group" required="true">
+				<mx:ComboBox x="54" y="-1" id="bgCbx" enabled="false" labelField="descricao" change="range.selectedIndex = -1; manutHoras.dataProvider = null; changeComboBg();" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Preço Especial" required="true">
+				<mx:ComboBox x="53" y="3" id="precoEspecialCbx" dataProvider="{comboPrecoEspecial}"  change="onChangePrecoEspecial()" labelField="descTipoPreco"  prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Número de Série" required="true" width="100%">
+				<mx:TextInput id="numeroSerie" width="86" maxChars="30" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem label="Ranger" required="true" width="100%" height="94">
+				<mx:List height="84" id="range" labelField="descricao" change="popularManutHoras()" width="158"></mx:List>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form>
+			<mx:FormItem label="Horímetro Atual" required="true" width="100%">
+				<mx:TextInput id="horimetro" width="86" maxChars="10" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem label="Méd. Hr. Mês" required="true" width="100%" id="mediaHorasMesForm" includeInLayout="false" visible="false">
+				<mx:TextInput id="mediaHorasMes" width="86" maxChars="10" restrict="0-9" />
+			</mx:FormItem>
+			<mx:FormItem id="frmDistanciaGerador" label="Dist. Ger.(Km)" required="true" width="100%">
+				<mx:TextInput id="distanciaGerador" width="86" maxChars="10" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem includeInLayout="false" visible="false">
+				<mx:CheckBox label="TA (Análise de Desempenho)" id="checkTa"/>
+			</mx:FormItem>
+			<mx:FormItem label="Parcelas" required="false" width="279">
+
+				<mx:HBox verticalAlign="middle">	
+					<mx:ComboBox id="parcelasCbx" labelField="label" dataProvider="{parcelasColl}" />
+					<mx:Image source="img/money.png" id="precoManutImg" width="29" height="22" visible="false" buttonMode="true" click="findAllParcelas()"/>
+				</mx:HBox>
+
+			</mx:FormItem>
+			<mx:FormItem label="Classif. Contrato" required="true" width="314">
+				<mx:ComboBox x="48" y="1" id="classificacaoCbx" labelField="descricao"  prompt="Selecione" selectedIndex="-1"  change="classificacaoCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Território Contrato" required="true" width="314">
+				<mx:ComboBox x="48" y="1" id="territorioCbx" labelField="label" enabled="false"  dataProvider="{territorioColl}" change="territorioCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo de Contrato" required="true" width="314">
+				<mx:ComboBox x="48" y="1" id="tipoContratoCbx" labelField="descricao"  prompt="Selecione" selectedIndex="-1" change="tipoContratoCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Status do contrato" required="true" width="321">
+				<mx:ComboBox x="48" y="1" id="statusContratoCbx" labelField="descricao" change="changeComboStatus()"  prompt="Selecione" selectedIndex="-1" width="198"/>
+			</mx:FormItem>
+			<mx:FormItem label="Manutenções">
+				<mx:List id="manutHoras" width="194" labelField="horasManutencao" alternatingItemColors="[#EEEEEE, white]" rowCount="5" toolTip="Selecione no mínimo um ciclo de 1000 horas">
+					<mx:itemRenderer>
+						<mx:Component>
+							<mx:CheckBox selectedField="isSelected"
+										 change="onChange(event);" selected="{data.isSelected}">
+								<mx:Script>
+									<![CDATA[
+										private function onChange(evt:Event):void {
+											data.isSelected = this.selected;
+										}
+									]]>
+								</mx:Script>
+							</mx:CheckBox>
+						</mx:Component>
+					</mx:itemRenderer>
+				</mx:List>
+			</mx:FormItem>
+			<!--mx:FormItem label="Revisão Contrato" id="revisaoContrato" required="true" width="286" includeInLayout="false" visible="false">
+				<mx:TextInput id="revisaoCliente" width="79" maxChars="255"/>
+			</mx:FormItem-->
+		</mx:Form>
+		<mx:Form>
+			<mx:FormItem label="Buscar Cliente" horizontalAlign="center"  borderStyle="solid" cornerRadius="5" borderColor="#FFCC33">
+				<mx:HBox verticalAlign="middle">
+					<mx:VBox>
+						<mx:RadioButtonGroup id="answers" />
+						<mx:RadioButton group="{answers}" id="codigo" label="Código" selected="true"/>
+						<mx:RadioButton group="{answers}" id="nome" label="Nome"/>
+						
+					</mx:VBox>
+					<mx:VBox horizontalAlign="center">
+						<mx:TextInput id="clienteText" width="122"/>
+						<mx:Button label="Buscar" click="findCliente()"/>
+					</mx:VBox>
+				</mx:HBox>	
+			</mx:FormItem>
+			<mx:FormItem label="Código Cliente" required="true" width="316">
+				<mx:TextInput id="codigoCliente" width="141" maxChars="20" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem label="Fabricante" required="true" width="286">
+				<mx:TextInput id="fabricante" width="169" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="UF" required="true" width="286">
+				<mx:TextInput id="uf" width="169" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Cidade" required="true" width="286">
+				<mx:TextInput id="cidade" width="169" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Endereço" required="true" width="286">
+				<mx:TextInput id="endereco" width="169" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Bairro" required="true" width="287">
+				<mx:TextInput id="bairro" maxChars="255" width="169"/>
+			</mx:FormItem>
+			<mx:FormItem label="CEP" required="true" width="285">
+				<mx:TextInput id="cep" maxChars="255" width="169"/>
+			</mx:FormItem>
+			<mx:FormItem label="CPF/CNPJ" required="true" width="285">
+				<mx:TextInput id="cnpj" maxChars="30" width="144"/>
+			</mx:FormItem>
+			<mx:FormItem label="Razão Social" required="true" width="283">
+				<mx:TextInput id="razaoSocial" width="161" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Insc. Estadual" required="true" width="283">
+				<mx:TextInput id="inscEstadual" maxChars="30"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form height="100%">
+			<mx:FormItem label="Insc. Municipal" required="true">
+				<mx:TextInput id="inscMunicipal" maxChars="30"/>
+			</mx:FormItem>
+			<mx:FormItem label="Contribuinte" required="true" >
+				<mx:TextInput id="contribuinte" maxChars="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="Rep. do Cliente" required="true" >
+				<mx:TextInput id="procurador" maxChars="200"/>
+			</mx:FormItem>
+			<mx:FormItem label="CPF Rep." required="true" >
+				<mx:TextInput id="cpf" maxChars="20"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tel. Representante" required="true"  width="296">
+				<controls:FormattedInput id="telComercial" width="123"/>
+			</mx:FormItem>
+			<mx:FormItem label="Rep. do Cliente Email:" required="true" >
+				<mx:TextInput id="emailContatoComercial" maxChars="255" width="164"/>
+			</mx:FormItem>
+			<mx:FormItem label="Contato Serviços" required="true" >
+				<mx:TextInput id="contatoServicos" maxChars="255" width="164"/>
+			</mx:FormItem>
+			<mx:FormItem label="Telefone Serviços" required="true"  width="299">
+				<controls:FormattedInput id="telServicos" width="123"/>
+			</mx:FormItem>
+			<mx:FormItem label="E-mail Serviços" required="true" >
+				<mx:TextInput id="emailContatoServicos" maxChars="255" width="164"/>
+			</mx:FormItem>
+			<mx:FormItem label="Indicação"  visible="true">
+				<mx:HBox width="100%" horizontalAlign="center" x="375" y="201">
+					<mx:TextInput id="funcionarioIndicado" enabled="true" editable="false"/>
+				</mx:HBox>
+				<mx:HBox>
+					<mx:Button id="pesquisarFuncionarioBtn" label="Add Indicação" click="pesquisarFuncionarioBtn_clickHandler(event)"/>
+				</mx:HBox>
+			</mx:FormItem>
+			<mx:FormItem label="E-mails CheckList">
+				<mx:TextArea id="emailCheckList" toolTip="Adicione os emails separando cada um deles por ponto e virgula (;)."/>
+			</mx:FormItem>
+			<mx:FormItem label="Condição excepcional" includeInLayout="false" visible="false">
+				<mx:TextArea height="75" id="condExcepcional" maxChars="100" width="164"/>
+			</mx:FormItem>
+			<mx:FormItem label="Aplicar Sub. Trib." id="aplicarSubstituicaoTributariaForm" visible="false">
+				<mx:CheckBox label="Sim" id="aplicarSubstituicaoTributariaCbx" click="{retirarSubstituicaoTributariaCbx.selected = false}"/>
+			</mx:FormItem>
+			<mx:FormItem label="Retirar Sub. Trib." id="retirarSubstituicaoTributariaForm" visible="false">
+				<mx:CheckBox label="Sim" id="retirarSubstituicaoTributariaCbx" click="{aplicarSubstituicaoTributariaCbx.selected = false}"/>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Vendas de Contrato Especial de PMP" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:VBox x="0" y="453" width="100%" height="100%">
+		<mx:HBox paddingLeft="20" width="100%">
+			<mx:Grid width="100%">
+				<mx:GridRow width="100%" height="100%">
+					<mx:GridItem width="100%" height="100%" verticalAlign="top" horizontalAlign="center" paddingLeft="50">
+						<mx:Button label="Salvar" id="salvarContrato" click="saveCotratoAlert()"/>
+						<mx:Button label="Novo" click="novoContrato()"/>
+						<mx:Button label="Pesquisar" click="pesquisa_clickHandler(event)"/>
+						<mx:Image source="img/contrato.png" width="33" id="contratoPdf" toolTip="Consultor" click="generatePDF('CON')" buttonMode="true" height="23" visible="{(contrato.numeroContrato != null &amp;&amp; (isNaN(contrato.idMotNaoFecContrato) || contrato.idMotNaoFecContrato == 0))?true:false}"/>
+						<!--mx:Image source="img/contrato.png" width="33" id="contratoPdfJuridico" toolTip="Jurídico" click="generatePDF('ADM')" buttonMode="true" height="23" visible="{(contrato.numeroContrato != null &amp;&amp; (isNaN(contrato.idMotNaoFecContrato) || contrato.idMotNaoFecContrato == 0) &amp;&amp; (_usuarioBean.isAdm == Boolean(true)))?true:false}"/-->
+					</mx:GridItem>
+				</mx:GridRow>
+			</mx:Grid>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:FormItem label="Mot. não Fechamento Contrato" id="formNaoFecContrato" includeInLayout="false" visible="false" required="true"  x="417" y="429">
+		<mx:ComboBox x="48" y="1" id="motNaoFecContratoCbx" labelField="descricao"  prompt="Selecione" selectedIndex="-1" />
+	</mx:FormItem>
+</mx:Canvas>

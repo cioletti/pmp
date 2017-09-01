@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Clientes" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="800" height="600">
+	<mx:Script>
+		<![CDATA[
+			import bean.ClienteBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			public function init(clientes:ArrayCollection):void{
+				gridClientes.dataProvider = clientes;
+			}
+			public function verificaFalgDelete():void{
+				if((gridClientes.selectedItem != null && ClienteBean(gridClientes.selectedItem).FLAGDELETE == "N") || ClienteBean(gridClientes.selectedItem).FLAGDELETE == ''){
+					this.close();
+				}else{
+					Alert.show("O cliente não pode ser usuado!", "Alerta");
+					this.close();
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:DataGrid id="gridClientes" x="0" y="0" width="772" height="567" doubleClick="verificaFalgDelete()" doubleClickEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Código" dataField="CLCHAVE"/>
+			<mx:DataGridColumn headerText="Nome Cliente" dataField="RAZSOC"/>
+			<mx:DataGridColumn headerText="Bairro" dataField="BAIRRO"/>
+			<mx:DataGridColumn headerText="Endereço" dataField="END"/>
+			<mx:DataGridColumn headerText="FLAGDELETE" dataField="FLAGDELETE"/>
+		</mx:columns>
+	</mx:DataGrid>	
+</util:ModuleTitleWindow>

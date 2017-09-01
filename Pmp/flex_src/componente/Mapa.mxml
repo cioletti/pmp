@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:componente="componente.*" xmlns:code="http://code.google.com/p/flex-iframe/" xmlns:util="util.*" >
+	<!--mx:Style source="campoCSS.css"/-->
+	<mx:Script>
+		<![CDATA[
+			import bean.ClienteBean;
+			import bean.FilialBean;
+			import bean.PlMaquinaBean;
+			import bean.UsuarioBean;
+			
+			import com.google.maps.InfoWindowOptions;
+			import com.google.maps.LatLng;
+			import com.google.maps.Map;
+			import com.google.maps.MapEvent;
+			import com.google.maps.MapMouseEvent;
+			import com.google.maps.MapType;
+			import com.google.maps.controls.MapTypeControl;
+			import com.google.maps.controls.ZoomControl;
+			import com.google.maps.overlays.Marker;
+			import com.google.maps.overlays.MarkerOptions;
+			import com.google.maps.services.ClientGeocoder;
+			import com.google.maps.services.GeocodingEvent;
+			import com.google.maps.styles.StrokeStyle;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ResizeEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var googleMap:Map;
+			private var geocoder:ClientGeocoder;
+			public var urlLogin:String = "";
+			public var urlMapa:String = "";
+			private var _usuarioBean:UsuarioBean;
+			//private var keyMap:String = "ABQIAAAAgsP8V7pK-3BuDIQZTJRCuhS_qyXjD7UEv7Q5oG2zzQaol4cG-hQicz6MFgv74JK40vuXSlQJVoUHpA";
+			private var keyMap:String = "ABQIAAAAgsP8V7pK-3BuDIQZTJRCuhS_qyXjD7UEv7Q5oG2zzQaol4cG-hQicz6MFgv74JK40vuXSlQJVoUHpA";
+			private var localizacaoVeiculo:ArrayCollection = new ArrayCollection(); 
+			[Embed(source="img/Pickup.png")]
+			private var Pickup:Class;
+			
+			public function init(urlLogin:String, _usuarioBean: UsuarioBean, urlMapa:String):void {
+				//serviceController.findAllFiliais();				
+				this.urlMapa = urlMapa;
+				frame.initialize();
+				frame.source = urlMapa+'/Mapa.jsp?idFuncionario='+_usuarioBean.matricula;
+				//frame.source = 'http://www.yahoo.com.br';
+				this.urlLogin = urlLogin;
+				this._usuarioBean = _usuarioBean;
+				
+				googleMap = new Map();
+				googleMap.key = keyMap;
+				googleMap.addEventListener(MapEvent.MAP_READY, googleMap_mapReady);
+				googleMap.setSize(new Point(mapContainer.width, mapContainer.height));
+				googleMap.sensor = "false";
+				
+				mapContainer.addChild(googleMap);
+				googleMap.addControl(new ZoomControl());
+				googleMap.addControl(new MapTypeControl());
+				//serviceController.findAllLocalizacaoCarroTecnico(_usuarioBean);
+				//serviceController.findAllMaquinaPl(_usuarioBean);
+				
+			}
+			
+			private var endArr:Array = null;
+			private function geocoder_geocodingSuccess(evt:GeocodingEvent):void {
+				var p:Array = evt.response.placemarks;
+				endArr[index] = p[0].address;
+				index++;
+			}
+			
+			private function geocoder_geocodingFailure(evt:GeocodingEvent):void {
+				index++;
+			}
+			
+			private function googleMap_mapReady(evt:MapEvent):void {
+				geocoder = new ClientGeocoder();
+				//geocoder.addEventListener(GeocodingEvent.GEOCODING_SUCCESS, geocoder_geocodingSuccess);
+				//geocoder.addEventListener(GeocodingEvent.GEOCODING_FAILURE, geocoder_geocodingFailure);
+				googleMap.setCenter(new LatLng(-3.875946,-38.627930), 4, MapType.HYBRID_MAP_TYPE);
+				
+				
+				//geocoder.geocode(textInput.text);
+			}
+			
+			private function onMapClick(event:MapMouseEvent):void{
+				geocoder.reverseGeocode(event.latLng);
+				geocoder.addEventListener(GeocodingEvent.GEOCODING_SUCCESS,
+					function(e:GeocodingEvent):void {
+						var placemarks:Array = e.response.placemarks;
+						googleMap.openInfoWindow(event.latLng, new InfoWindowOptions( { title:
+							"Endereço :", content: placemarks[0].address }));
+					}
+				);
+			} 
+			
+			[Embed(source="img/logo.png")] private var purpleIcon:Class
+			[Embed(source="img/camera.png")] private var cameraIcon:Class
+			private var index:int = 0;
+			
+			private function populateMap():void {
+				//geocoder.geocode(textInput.text);
+				var markerOptions:MarkerOptions = new MarkerOptions();
+				
+				//				markerOptions.icon = new purpleIcon();
+				//				markerOptions.tooltip = "Purple";
+				//				markerOptions.iconAlignment = MarkerOptions.ALIGN_HORIZONTAL_CENTER;
+				//				markerOptions.iconOffset = new Point(2, 2);
+				
+				//googleMap.setCenter(new LatLng(40.736072,-73.992062), 14, MapType.NORMAL_MAP_TYPE);
+				
+				
+				for(var i:int = 0; i < localizacaoVeiculo.length; i++){					
+					
+					var pl:PlMaquinaBean = PlMaquinaBean(localizacaoVeiculo.getItemAt(i));					
+					//var infoLocal:String = "Numero OS: "+pl.numOS;
+										
+//					for(var j:int = 0; j < localizacaoVeiculo.length; j++){						
+//						var pl2:PlMaquinaBean = PlMaquinaBean(localizacaoVeiculo.getItemAt(j));
+//						if(pl.placa == pl2.placa && pl2.numOS != pl.numOS){
+//							infoLocal += ", "+pl2.numOS;
+//						}
+//					}
+					
+//					var placa:String = pl.placa;
+//					
+//					if(placa != null){
+//					var auxPlaca:Array = pl.placa.split("-");
+//					if(auxPlaca.length == 3){
+//						placa = auxPlaca[2];
+//					}else if(auxPlaca.length == 2){
+//						placa = auxPlaca[1];
+//					}
+//						
+//					}				
+					
+					//					if(pl.latitude != null){
+					//						geocoder.reverseGeocode(new LatLng(Number(pl.latitude),Number(pl.longitude)));
+					//					}
+//					var style:StrokeStyle = new StrokeStyle({ thickness: 5,color: 0xFF0000, alpha: 0.7,pixelHinting: false });
+//					markerOptions.strokeStyle = style;  
+					if(pl.tecnico == null){
+						pl.tecnico = "";
+					}					
+					
+					markerOptions.icon = new Pickup();
+					markerOptions.tooltip = pl.numOS+"\n Técnico: "+pl.tecnico+"\n Placa: "+pl.placa+"\n Localização: "+pl.localizacao 
+					var marker:Marker = new Marker(new LatLng(Number(pl.latitude),Number(pl.longitude)), markerOptions);
+					marker.addEventListener(MapMouseEvent.CLICK, onMapClick);
+					googleMap.addOverlay(marker);
+					
+					
+				}
+				//				markerOptions.tooltip = "teste 2";
+				//				markerOptions.icon = new cameraIcon();
+				//				marker = new Marker(new LatLng(40.736072,-73.994870), markerOptions);
+				//				
+				//				googleMap.addOverlay(marker);
+				//				var marker:Marker = new Marker(new LatLng(40.736072,-74.992062), markerOptions);
+				//				googleMap.addOverlay(marker);
+				
+			}
+			private function populateMapMaquinaPl():void {
+				//geocoder.geocode(textInput.text);
+				var markerOptions:MarkerOptions = new MarkerOptions();
+				
+			
+				
+				for(var i:int = 0; i < localizacaoVeiculo.length; i++){					
+					
+					var pl:PlMaquinaBean = PlMaquinaBean(localizacaoVeiculo.getItemAt(i));					
+				
+					
+					markerOptions.tooltip = pl.descricao;
+					var marker:Marker = new Marker(new LatLng(Number(pl.latitude),Number(pl.longitude)), markerOptions);
+					marker.addEventListener(MapMouseEvent.CLICK, onMapClick);
+					googleMap.addOverlay(marker);
+					
+					
+				}
+			}
+			
+			
+			private function mapContainer_resize(evt:ResizeEvent):void {
+				if (googleMap) {
+					googleMap.setSize(new Point(mapContainer.width, mapContainer.height));
+				}
+			}
+			
+//			private function click_button():void{
+//				var idFilial:Number = (filialCbx.selectedIndex > -1)?FilialBean(filialCbx.selectedItem).stno:null;
+//				if(serieText.text != ''){
+//					serviceController.findAllMaquinaPlByName(serieText.text);
+//					return;
+//				}else if(filialCbx.selectedIndex > 0){
+//					if(clienteText.text != ''){
+//						if(answers.selection.id == "codigo"){
+//							serviceController.findAllPlMaquinaFilter(idFilial, clienteSel, clienteText.text, true, false, Boolean(pmpCbx.selectedItem.valor));
+//							return;
+//						}else if(answers.selection.id == "nome"){
+//							serviceController.findAllPlMaquinaFilter(idFilial, clienteSel, clienteText.text, false, true, Boolean(pmpCbx.selectedItem.valor));
+//							return;
+//						}
+//					}else{
+//						serviceController.findAllPlMaquinaFilter(idFilial, clienteSel, clienteText.text, false, false, Boolean(pmpCbx.selectedItem.valor));
+//						return;
+//					}
+//				
+//				}if(clienteText.text != ''){
+//					if(answers.selection.id == "codigo"){
+//						serviceController.findAllPlMaquinaFilter(idFilial, clienteSel, clienteText.text, true, false, Boolean(pmpCbx.selectedItem.valor));
+//						return;
+//					}else if(answers.selection.id == "nome"){
+//						serviceController.findAllPlMaquinaFilter(idFilial, clienteSel, clienteText.text, false, true, Boolean(pmpCbx.selectedItem.valor));
+//						return;
+//					}
+//				}else{
+//					serviceController.findAllMaquinaPl();
+//				}
+//			}
+			
+			private function onResultfindAllLocalizacaoCarroTecnico(event:ResultEvent):void{
+				localizacaoVeiculo = ArrayCollection(event.result);
+				endArr = new Array(localizacaoVeiculo.length);
+				//				for(var j:int = 0; j < localizacaoVeiculo.length; j++){
+				//					var pl:PlMaquinaBean = PlMaquinaBean(localizacaoVeiculo.getItemAt(j));
+				//					geocoder.reverseGeocode(new LatLng(Number(pl.latitude),Number(pl.longitude)));
+				//				}	
+				this.populateMap();
+			}
+			private function onResultFindAllMaquinaPl(event:ResultEvent):void{
+				localizacaoVeiculo = ArrayCollection(event.result);
+				endArr = new Array(localizacaoVeiculo.length);
+				//				for(var j:int = 0; j < localizacaoVeiculo.length; j++){
+				//					var pl:PlMaquinaBean = PlMaquinaBean(localizacaoVeiculo.getItemAt(j));
+				//					geocoder.reverseGeocode(new LatLng(Number(pl.latitude),Number(pl.longitude)));
+				//				}	
+				this.populateMapMaquinaPl();
+			}
+//			private function onResultFindAllMaquinaPlByName(event:ResultEvent):void{
+//				if(event.result != null){
+//					clienteSel = new ArrayCollection();
+//					clienteText.text = '';
+//					filialCbx.selectedIndex;
+//					var pl:PlMaquinaBean = PlMaquinaBean(event.result);	
+//					localizacaoVeiculo.removeAll();
+//					localizacaoVeiculo.addItem(pl);
+//					googleMap = new Map();
+//					googleMap.key = keyMap;
+//					googleMap.addEventListener(MapEvent.MAP_READY, googleMap_mapReady);
+//					googleMap.setSize(new Point(mapContainer.width, mapContainer.height));
+//					googleMap.sensor = "false";
+//					
+//					mapContainer.addChild(googleMap);
+//					googleMap.addControl(new ZoomControl());
+//					googleMap.addControl(new MapTypeControl());
+//					this.populateMap();
+//					
+//				}else{
+//					Alert.show("Não existe essa máquina!", "Alerta");
+//				}
+//			}
+//			private function onResultFindAllMaquinaPlByFilter(event:ResultEvent):void{
+//				if(event.result != null){
+//					
+//					clienteSel = new ArrayCollection();
+//					clienteText.text = '';
+//					filialCbx.selectedIndex;
+//					localizacaoVeiculo.removeAll();
+//					localizacaoVeiculo = ArrayCollection(event.result);
+//					googleMap = new Map();
+//					googleMap.key = keyMap;
+//					googleMap.addEventListener(MapEvent.MAP_READY, googleMap_mapReady);
+//					googleMap.setSize(new Point(mapContainer.width, mapContainer.height));
+//					googleMap.sensor = "false";
+//					
+//					mapContainer.addChild(googleMap);
+//					googleMap.addControl(new ZoomControl());
+//					googleMap.addControl(new MapTypeControl());
+//					
+//					this.populateMap();
+//				}else{
+//					Alert.show("Não existe essa máquina!", "Alerta");
+//				}
+//			}
+//			private function onResultFindAllFiliais(event:ResultEvent):void{
+//				var filial:FilialBean = new FilialBean();
+//				filial.stno = -1;
+//				filial.stnm = 'Selecione';
+//				ArrayCollection(filialCbx.dataProvider).addItem(filial);
+//				ArrayCollection(filialCbx.dataProvider).addAll(ArrayCollection(event.result));
+//			}
+//			
+//			private var filalMap:FilialMap = new FilialMap();
+//			public function popupFilalMap():void{
+//				
+//				filalMap.addEventListener(CloseEvent.CLOSE, removePopUpFilialMap);
+//				PopUpManager.addPopUp(filalMap,this,true);
+//				PopUpManager.centerPopUp(filalMap)
+//				filalMap.width = 400;
+//				filalMap.height = 300;
+//				filalMap.init(urlLogin, Number(FilialBean(filialCbx.selectedItem).stno));
+//				
+//				
+//			}
+//			private var clienteSel:ArrayCollection = new ArrayCollection();
+//			private function removePopUpFilialMap(obj:CloseEvent):void{
+//				clienteSel = new ArrayCollection();
+//				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+//				if(filalMap.clientesList.dataProvider != null){
+//					var list:ArrayCollection = ArrayCollection(filalMap.clientesList.dataProvider);
+//					for(var i:int = 0; i < list.length; i++){
+//						var clienteBean:ClienteBean = ClienteBean(list.getItemAt(i));
+//						if(clienteBean.isSelected){
+//							clienteSel.addItem(clienteBean);
+//						}
+//					}
+//					if(clienteSel.length > 0){
+//						serviceController.findAllPlMaquinaFilter(Number(FilialBean(filialCbx.selectedItem).stno), clienteSel, clienteText.text, false, false, Boolean(pmpCbx.selectedItem.valor));
+//					}
+//				}
+//				
+//				
+//			}
+//			
+//
+//			protected function filialCbx_changeHandler(event:ListEvent):void
+//			{
+//				if(filialCbx.selectedIndex == 0){
+//					filterImg.visible = false;
+//				}else{
+//					filterImg.visible = true;
+//				}
+//			}
+
+//			private function clickMap():void{
+//					frame.x=0;
+//			}
+			
+			private function changeEstado():void{
+				ProgressBarHelper.removeProgressBar();
+			}
+				
+				
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="pmpColl">
+		
+		<mx:Object label="NAO" valor="false"/>
+		<mx:Object label="SIM" valor="true"/>
+		
+		
+	</mx:ArrayCollection>  
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllLocalizacaoCarroTecnico" result="onResultfindAllLocalizacaoCarroTecnico(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllMaquinaPl" result="onResultFindAllMaquinaPl(event);ProgressBarHelper.removeProgressBar()" />
+		<!--mx:method name="findAllMaquinaPlByName" result="onResultFindAllMaquinaPlByName(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFiliais" result="onResultFindAllFiliais(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllPlMaquinaFilter" result="onResultFindAllMaquinaPlByFilter(event);ProgressBarHelper.removeProgressBar()"/-->
+	</mx:RemoteObject>
+	
+	
+	<!--mx:ApplicationControlBar dock="true" width="100%" height="35">
+		<mx:Form styleName="plain">
+			<mx:FormItem label="Nº Série:"
+						 direction="horizontal">
+				<mx:TextInput id="serieText"
+							  text="" />
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form styleName="plain">
+			<mx:FormItem label="Filial">
+				<mx:ComboBox x="10" y="113" enabled="true" id="filialCbx" labelField="stnm" width="240" change="filialCbx_changeHandler(event)"></mx:ComboBox>
+			</mx:FormItem>
+		</mx:Form>	
+		<mx:Image width="30" height="22" id="filterImg" click="popupFilalMap()" buttonMode="true" visible="false" source="img/filter.png"/>
+		<mx:FormItem label="Buscar Cliente" horizontalAlign="center"  borderStyle="solid" cornerRadius="5" borderColor="black">
+			<mx:HBox verticalAlign="middle">
+				<mx:HBox>
+					<mx:RadioButtonGroup id="answers" />
+					<mx:RadioButton group="{answers}" id="codigo" label="Código" selected="true"/>
+					<mx:RadioButton group="{answers}" id="nome" label="Nome"/>
+					
+				</mx:HBox>
+				<mx:VBox horizontalAlign="center">
+					<mx:TextInput id="clienteText" width="122"/>
+				</mx:VBox>
+			</mx:HBox>	
+		</mx:FormItem>
+		<mx:Form styleName="plain">
+			<mx:FormItem label="Possui PMP">
+				<mx:ComboBox x="10" y="113" enabled="true" id="pmpCbx" labelField="label" dataProvider="{pmpColl}" ></mx:ComboBox>
+			</mx:FormItem>
+		</mx:Form>	
+		<mx:Button id="button"
+				   label="filtrar"
+				   click="click_button()" />
+	</mx:ApplicationControlBar-->
+	
+		
+	<code:IFrame id="frame" y = "18"
+					   label="Google"
+					   width="100%"
+					   height="100%" enabled="true" />	
+		
+	<mx:UIComponent id="mapContainer" visible="false"
+					width="100%"
+					height="100%"
+					resize="mapContainer_resize(event);"  y="43" x="-10"/>
+</mx:Canvas>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="init()" layout="absolute" minWidth="955" minHeight="600">
+	<mx:Script>
+		<![CDATA[
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlServico:String = "";
+			public var urlLogin:String = "";
+			private function init():void{
+				serviceController.getUrlServicoPmp();
+			}
+			private function onResultGetUrlServicoPmp(event:ResultEvent):void{
+				urlServico = String(event.result);
+			}
+			private function onResultGetUrlLogintServer(event:ResultEvent):void{
+				urlLogin = String(event.result);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				var uv:URLVariables = new URLVariables();
+				
+				var url:URLRequest = new URLRequest(urlServico+"/ServicoImportacao");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_self");
+				
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="getUrlServicoPmp" result="onResultGetUrlServicoPmp(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="getUrlLogintServer" result="onResultGetUrlLogintServer(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:Button x="467" y="188" label="Importar" click="button1_clickHandler(event)"/>
+</mx:Application>

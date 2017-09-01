@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleTitleWindow  title="Operacional" xmlns="util.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="1066" height="562" alpha="0.97" cornerRadius="4" xmlns:componente="componente.*" xmlns:controls="fs.controls.*">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ConfigOperacionalBean;
+			import bean.FilialBean;
+			import bean.MaquinaPlBean;
+			import bean.OperacionalBean;
+			import bean.RangerBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var operacional:OperacionalBean = new OperacionalBean() ;
+			private var configOperacional:ConfigOperacionalBean = new ConfigOperacionalBean();
+			private var maquinaPl:MaquinaPlBean = new MaquinaPlBean();
+			private var idContrato:Number;
+			private var numeroContrato:String;
+			public var osEstimadaContrato: CriarOsEstimadaContrato;
+			private var numeroOs:String;
+			public var operacionalBean:OperacionalBean;
+			public var isSave:Boolean = false;
+			private var usuario:UsuarioBean;
+			[Bindable]
+			private var listTipoCustomizacao:ArrayCollection = new ArrayCollection();				
+			public function init(urlLogin:String, operacionalBean:OperacionalBean, usuario:UsuarioBean):void{
+				
+				this.telefoneServ.inputFormat = FormattedInput.INPUT_FORMAT_FONE_DDD;
+				this.operacionalBean = operacionalBean;
+				this.usuario = usuario;
+				serviceController.findAllFilial();
+				serviceController.findConfigOperacional(idContrato);	
+				serviceController.findMaquinaPl(operacional.numeroSerie);
+				serviceController.findIdEquipamento(operacional.numeroSerie);
+				serviceController.findAllRangerContrato(operacionalBean.modelo, operacionalBean.prefixo, operacionalBean.contExcessao, operacionalBean.idConfiguracaoPreco);
+				serviceController.findAllConfigCustomizacao(operacionalBean.modelo, idContrato);
+				myValidators = new Array();
+				this.urlLogin = urlLogin;
+				if(this.usuario.isAdm == true){
+					terminarContratoBtt.visible = true;
+				}
+							
+			}
+			
+			private function onResultFindAllConfigCustomizacao(event:ResultEvent):void{
+				if(event.result != null){
+					formTipoCustomizacao.includeInLayout = true;
+					formTipoCustomizacao.visible = true;
+				}else{
+					formTipoCustomizacao.includeInLayout = false;
+					formTipoCustomizacao.visible = false;
+					return;
+				}
+				var result:ArrayCollection = ArrayCollection(event.result);
+				listTipoCustomizacao.removeAll();
+				listTipoCustomizacao.addAll(ArrayCollection(event.result));
+				tipoCustomizacaoList.dataProvider = listTipoCustomizacao;
+			}
+			
+			private function removePopUp(event:Event):void{
+				this.close();
+			}
+			private function onResultFindAllFilial(event:ResultEvent):void{
+				filialCbx.dataProvider = event.result;
+			}
+			
+			private function onResultFindConfigOperacional(event:ResultEvent):void{
+				configOperacional = ConfigOperacionalBean(event.result);
+				local.text = configOperacional.local;
+				contato.text = configOperacional.contato;
+				telefoneServ.text = configOperacional.telefoneContato;	
+				emailText.text = configOperacional.email;
+				numSerieText.text = configOperacional.numeroSerie;
+				obsTxtArea.text = configOperacional.obsCliente;
+				this.selectedFilial();
+			}
+			
+			private function onResultFindMaquinaPl(event:ResultEvent):void{
+				maquinaPl = MaquinaPlBean(event.result);
+				horimetro.text = String(maquinaPl.horimetro);				
+			}
+						
+			public function recebeObjeto(_operacional: OperacionalBean): void{
+				this.operacional = _operacional;
+				this.idContrato = operacional.contratoId;	
+				this.numeroContrato = operacional.numeroContrato;
+				this.numeroOs = operacional.numOs;								
+			}
+			
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				configOperacional = ConfigOperacionalBean(event.result);
+				if(configOperacional != null){
+					Alert.show("Configuração Operacional salva com sucesso!", "Alerta");
+					serviceController.findConfigOperacional(idContrato);
+					this.isSave = true;
+					this.close();
+					return;
+				}
+				Alert.show("Erro ao salvar Configuração Operacional!", "Alerta");
+			}
+			
+			private function onResultSaveOrUpdateMaquinaPl(event:ResultEvent):void{
+				maquinaPl = MaquinaPlBean(event.result);
+				horimetro.text = String(maquinaPl.horimetro);
+			}
+			
+			
+			private function saveOrUpdateMaquinaPl():void{
+				
+				//if(Number(horimetro.text) != maquinaPl.horimetro || maquinaPl.numeroSerie != numSerieText.text){
+					var maquinaPlNovo:MaquinaPlBean = new MaquinaPlBean();
+					maquinaPlNovo.numeroSerie = operacional.numeroSerie;
+					maquinaPlNovo.modelo = operacional.modelo;
+					maquinaPlNovo.horimetro = Number(horimetro.text);
+					maquinaPlNovo.numeroSerie = numSerieText.text;
+					maquinaPlNovo.idContrato = this.operacionalBean.contratoId;
+					serviceController.saveOrUpdateMaquinaPl(maquinaPlNovo);
+				//}			
+			}
+			
+			private function saveOrUpdate():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					if(numSerieText.text.length < 9){
+						Alert.show("O número de série tem que possuir no mínimo 9 caracteres alfanuméricos!", "Alerta");
+						return;
+					}
+					if(range.selectedIndex == -1){
+						Alert.show("Selecione o Ranger!", "Alerta");
+						return;
+					}
+					saveOrUpdateMaquinaPl();					
+					configOperacional.local = local.text;
+					configOperacional.contato = contato.text;
+					configOperacional.telefoneContato = telefoneServ.text;
+					configOperacional.idContrato = this.idContrato;
+					configOperacional.filial = FilialBean(filialCbx.selectedItem).stno;
+					configOperacional.email = emailText.text;
+					configOperacional.numeroSerie = numSerieText.text;
+					configOperacional.obsCliente = obsTxtArea.text;
+					
+					configOperacional.beginRanger = RangerBean(range.selectedItem).beginRanger;
+					configOperacional.endRanger = RangerBean(range.selectedItem).endRanger;
+					
+					configOperacional.tipoCustomizacaoList = ArrayCollection(tipoCustomizacaoList.dataProvider);
+					
+					serviceController.saveOrUpdate(configOperacional);	
+					
+					
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+			}	
+			private function createCompleteOsEstimada():void{
+				criarOsEstimada.addEventListener("REMOVERPOPUP", removePopUp);
+				criarOsEstimada.init(urlLogin,numeroContrato, operacionalBean, this.usuario);
+			}
+			
+			private function selectedFilial():void{
+				var filialList:ArrayCollection = ArrayCollection(filialCbx.dataProvider);
+				for(var i:int=0; i < filialList.length; i++){
+					var filial:FilialBean = FilialBean(filialList.getItemAt(i));
+					if(configOperacional.filial == filial.stno){
+						filialCbx.selectedIndex = i;
+						break;
+					}
+				}								
+			}
+			
+			private function createOsEstimada():void{
+				if(this.operacional.codErroDbs != null && this.operacional.codErroDbs != '99'){
+					var numChildren:int = tabNavigator.numChildren;
+					if(numChildren > 1){
+						tabNavigator.removeChildAt(1);
+					}
+					return;
+				}
+			}
+
+			protected function enviarObsCliente_clickHandler(event:MouseEvent):void
+			{
+				if(obsTxtArea.text !=  "" && emailText.text != ""){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";
+					Alert.show("Deseja realmente enviar a observação para o cliente?", "Enviar", 3, this, alertClickHandler);
+				}else{
+					Alert.show("O campo observação e e-mail são obrigatórios","Alerta!");
+						
+				}
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.enviarObsCliente(obsTxtArea.text, emailText.text);
+				}
+			}
+			
+			private function onResultEnviarObsCliente (event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("E-mail enviado com sucesso.","Alerta!");
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao enviar o e-mail.","Alerta!");
+				}
+			}
+			private function onResultTerminarContrato (event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Contrato Terminado com sucesso.","Alerta!");
+					this.isSave = true;
+					this.close();
+				}else{
+					Alert.show("Ocorreu um erro ao tentar terminar o contrato.","Alerta!");
+				}
+			}
+			private function onResultFindIdEquipamento (event:ResultEvent):void{
+				if(event.result != null){
+					idEquipamentoTxt.text = String(event.result);
+				}else{
+					idEquipamentoTxt.text = "";
+				}
+			}
+			
+			
+			private function terminarContrato():void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente terminar o contrato?\nDepois que estiver terminado não é mais possível voltá-lo a situação anterior.", "Alerta", 3, this, alertClickHandlerTerminarContrato);	
+			}
+			private function alertClickHandlerTerminarContrato(event:CloseEvent):void {				
+				if (event.detail==Alert.YES) {
+					serviceController.terminarContrato(this.idContrato);
+				}
+			}
+			private function onResultFindAllRanger(event:ResultEvent):void{
+				range.dataProvider = ArrayCollection(event.result);
+				this.selectedRanger();
+			}
+			
+			private function selectedRanger():void{
+				var rangerList:ArrayCollection = ArrayCollection(range.dataProvider);
+				for(var i:int=0; i < rangerList.length; i++){
+					var rg:RangerBean = RangerBean(rangerList.getItemAt(i));
+					if(this.operacionalBean.beginRanger == rg.beginRanger && this.operacionalBean.endRanger == rg.endRanger){
+						range.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+		]]>
+	</mx:Script>
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllFilial" result="onResultFindAllFilial(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findMaquinaPl" result="onResultFindMaquinaPl(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdateMaquinaPl" result="onResultSaveOrUpdateMaquinaPl(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findConfigOperacional" result="onResultFindConfigOperacional(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="enviarObsCliente" result="onResultEnviarObsCliente(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="terminarContrato" result="onResultTerminarContrato(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findIdEquipamento" result="onResultFindIdEquipamento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllRangerContrato" result="onResultFindAllRanger(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigCustomizacao" result="onResultFindAllConfigCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>		
+	<mx:TabNavigator width="1000" height="481" id="tabNavigator">
+		<mx:Canvas id="abaConfigOperacional" label="Configuração Operacional" width="100%" height="100%">
+			<mx:HBox x="0" y="10" width="100%" horizontalAlign="left" verticalAlign="middle" paddingBottom="3" paddingTop="3" height="404">
+				
+				<mx:VBox x="0" y="49" width="60%" horizontalAlign="right" verticalAlign="middle" paddingBottom="3" paddingTop="3">
+					<mx:Form>
+						<mx:FormItem label="Filial" required="true">
+							<mx:ComboBox x="54" y="-1" id="filialCbx" labelField="stnm" prompt="Selecione"/>
+						</mx:FormItem>
+						<mx:FormItem label="Localização" required="true" width="300">
+							<mx:TextArea id="local"  width="161" height="57"/>
+						</mx:FormItem>
+						<mx:FormItem label="Contato" required="true" width="300">
+							<mx:TextInput id="contato"  maxChars="20"/>
+						</mx:FormItem>
+						<mx:FormItem label="Telefone" required="true" width="316">
+							<controls:FormattedInput id="telefoneServ" maxChars="15" width="102"/>
+						</mx:FormItem>
+						<mx:FormItem label="E-mail" required="true">
+							<mx:TextInput id="emailText" />
+						</mx:FormItem>
+						<mx:FormItem label="Horímetro" required="true" width="300">
+							<mx:TextInput id="horimetro" />
+						</mx:FormItem>
+						<mx:FormItem label="Nº Série" required="true" width="300">
+							<mx:TextInput id="numSerieText" />
+						</mx:FormItem>
+						<mx:FormItem label="ID Equipamento" required="false" width="300">
+							<mx:TextInput id="idEquipamentoTxt" editable="false"/>
+						</mx:FormItem>
+						<mx:FormItem label="Ranger" required="true" width="100%" height="94" id="formRanger">
+							<mx:List height="84" id="range" labelField="descricao" width="158"></mx:List>
+						</mx:FormItem>
+					</mx:Form>
+				</mx:VBox>				
+				
+				<mx:Form>
+					
+					<mx:FormItem label="Customizações" id="formTipoCustomizacao" visible="false" includeInLayout="false">
+						<mx:List id="tipoCustomizacaoList" width="194" labelField="descricao" alternatingItemColors="[#EEEEEE, white]" rowCount="5" toolTip="Selecione as customizações de configurações!" height="76">
+							<mx:itemRenderer>
+								<mx:Component>
+									<mx:CheckBox selectedField="isSelected"
+												 change="onChange(event);" selected="{data.isSelected}">
+										<mx:Script>
+											<![CDATA[
+												private function onChange(evt:Event):void {
+													data.isSelected = this.selected;
+												}
+											]]>
+										</mx:Script>
+									</mx:CheckBox>
+								</mx:Component>
+							</mx:itemRenderer>
+						</mx:List>
+					</mx:FormItem>
+					
+					<mx:FormItem label="Observação Contrato:">	
+					<mx:TextArea id="obsTxtArea" width="267" height="120"/>
+					<mx:HBox horizontalAlign="center" width="100%">
+						<mx:Button id="enviarObsCliente" label="Enviar Obs para o Cliente" click="enviarObsCliente_clickHandler(event)" toolTip="Envia e-mail para o cliente com a observação preenchida."/>						
+					</mx:HBox>
+				</mx:FormItem>
+				</mx:Form>				
+			</mx:HBox>
+			<mx:HBox width="100%" horizontalAlign="center" y="412" x="0">
+				<mx:Button label="Atualizar" click="saveOrUpdate()"/>		
+				<mx:Button id="terminarContratoBtt" visible="false" label="Terminar Contrato" click="terminarContrato()"/>
+			</mx:HBox>
+		</mx:Canvas>
+		<mx:Canvas id="abaOsEstimada"  label="Criar OS Estimada" creationComplete="createOsEstimada()" width="100%" height="100%" >
+			<componente:CriarOsEstimadaContrato  x="0" y="-10" id="criarOsEstimada" creationComplete="createCompleteOsEstimada()" creationPolicy="auto" height="434" width="998">
+			</componente:CriarOsEstimadaContrato>
+		</mx:Canvas>
+	</mx:TabNavigator>
+	
+</ModuleTitleWindow>

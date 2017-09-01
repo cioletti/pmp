@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute"  height="300" width="539">
+	<mx:Script>
+		<![CDATA[
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public function init(urlLogin:String, idFilial:Number):void{
+				this.urlLogin = urlLogin;
+				serviceController.findClienteFilialPL(idFilial);
+			}
+			private function onResultFindClienteFilialPL(event:ResultEvent):void{
+				clientesList.dataProvider = event.result;
+			}
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findClienteFilialPL" result="onResultFindClienteFilialPL(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:FormItem label="Clientes" height="250">
+		<mx:List id="clientesList" width="323" labelField="RAZSOC" alternatingItemColors="[#EEEEEE, white]" rowCount="5" toolTip="Selecione os clientes" height="250">
+			<mx:itemRenderer>
+				<mx:Component>
+					<mx:CheckBox selectedField="isSelected"
+								 change="onChange(event);" selected="{data.isSelected}">
+						<mx:Script>
+							<![CDATA[
+								private function onChange(evt:Event):void {
+									data.isSelected = this.selected;
+								}
+							]]>
+						</mx:Script>
+					</mx:CheckBox>
+				</mx:Component>
+			</mx:itemRenderer>
+		</mx:List>
+	</mx:FormItem>	
+</util:ModuleTitleWindow>

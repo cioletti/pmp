@@ -1,0 +1,132 @@
+/* CSS file */
+
+/*
+Application{
+	backgroundColor: #ffffff;
+	backgroundGradientColors: #ffffff, #ffffff;
+}
+
+ApplicationControlBar{
+	backgroundColor: #f59e08;
+	borderStyle: solid;
+	fillAlphas: 0, 0;
+	borderThickness: 2;
+}
+
+DataGrid {
+	rollOverColor: #ff9900;
+	selectionColor: #cccccc;
+}
+Alert {
+	color : #124332;
+	background-color: #ffffff;
+	header-colors : #ffcc33, #ffcc33;
+	header-height:19;
+	drop-shadow-enabled: true;
+	drop-shadow-color :#ffcc33;
+	corner-radius :6;
+	border-style :solid;
+	border-thickness: 1;
+	border-color : #ffcc33;
+	footer-colors : #ffcc33, #ffffff;
+	title-style-name : "title";
+}*/
+
+Application {
+	backgroundColor: #000000;
+	backgroundGradientColors: #ffffff, #ffffff;
+	backgroundGradientAlphas: 1, 1;
+	color: #0b333c;
+}
+
+ApplicationControlBar {
+	fillColors: #ffffff, #ffffff;
+	backgroundColor: #ffcc00;
+	backgroundAlpha: 1;
+}
+
+Button {
+	fillAlphas: 1, 1, 1, 1;
+	fillColors: #ffcc33, #ffcc33, #ffcc33, #ffcc33;
+	themeColor: #ffcc33;
+	
+}
+
+
+TextInput {
+	borderStyle: solid;
+	borderColor: #ffcc33;
+	borderThickness: 1;
+	cornerRadius: 0;
+	theme-color: #ffcc33;
+}
+
+HRule {
+	strokeColor: #ffcc33;
+	shadowColor: #ffcc33;
+}
+
+Panel {
+	borderColor: #ffcc33;
+	borderAlpha: 1;
+	borderThicknessLeft: 14;
+	borderThicknessTop: 0;
+	borderThicknessBottom: 5;
+	borderThicknessRight: 14;
+}
+ModuleTitleWindow {
+	borderColor: #ffcc33;
+	borderAlpha: 1;
+	borderThicknessLeft: 14;
+	borderThicknessTop: 0;
+	borderThicknessBottom: 5;
+	borderThicknessRight: 14;
+}
+
+Alert {
+	color : #124332;
+	background-color: #ffffff;
+	header-colors : #ffcc33, #ffcc33;
+	header-height:19;
+	drop-shadow-enabled: true;
+	drop-shadow-color :#ffcc33;
+	corner-radius :6;
+	border-style :solid;
+	border-thickness: 1;
+	border-color : #ffcc33;
+	footer-colors : #ffcc33, #ffffff;
+	title-style-name : "title";
+}
+TextArea {
+	borderColor: #ffcc33;
+	theme-color: #ffcc33;
+}
+
+DataGrid {
+	headerColors: #ffcc66, #ffcc33;
+	headerStyleName: "mydataGridHeaderStyle";
+	rollOverColor: #ffcc00;
+	selectionColor: #cccccc;
+}
+List {
+	
+	rollOverColor: #ffcc33;
+	selectionColor: #ffcc33;
+	borderColor: #ffcc33;
+}
+
+.mydataGridHeaderStyle {
+	color: #000000;
+	fontWeight: bold;
+	fontStyle: normal;
+	textDecoration: none;
+	letterSpacing: 0;
+}
+
+PrintDataGrid {
+	headerColors: #ffcc66, #ffcc33;
+	rollOverColor: #ffcc33;
+	selectionColor: #ffcc33;
+	headerStyleName: "mydataGridHeaderStyle";
+}
+

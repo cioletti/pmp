@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.ConfiguracaoPrecosBean;
+			import bean.ConfigurarCustomizacaoBean;
+			import bean.ConfigurarTracaoBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.TipoCustomizacaoBean;
+			import bean.TipoTracaoBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var configCustomizacao:ConfigurarCustomizacaoBean = new ConfigurarCustomizacaoBean();
+			
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.findAllFamilia();
+				gridCustomizacaoSigla.addEventListener("REMOVERCUST", removerCustomizacao);
+				gridCustomizacao.addEventListener("REMOVERCONFCUST", removerConfigCustomizacao);
+			}
+			
+			private function removerCustomizacao(ev: Event): void{
+				ArrayCollection(gridCustomizacaoSigla.dataProvider).removeItemAt(gridCustomizacaoSigla.selectedIndex);
+			}
+			
+			private function removerConfigCustomizacao(ev: Event): void{
+				serviceController.removerConfigCustomizacao(ConfigurarCustomizacaoBean(gridCustomizacao.selectedItem).id);
+			}
+			private function onResultRemoverConfigCustomizacao(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Transação realizada com sucesso!","Alerta");
+					serviceController.findAllConfigCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+					this.novo();
+					return;
+				}else{
+					Alert.show("Erro ao realizar Transação!","Alerta");
+					return;
+				}
+			}
+			[Bindable]
+			private var comboFamilia:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				if(comboFamilia.length > 0){
+					comboFamilia.removeAll();
+				}
+				comboFamilia.addAll(ArrayCollection(event.result));
+				familiaCbx.dataProvider = comboFamilia;
+			}
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllModelos(FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				comboModelo.addAll(ArrayCollection(event.result));
+				modeloCbx.dataProvider = comboModelo;
+				
+			}
+			private function onChangeModelo():void{
+				serviceController.findAllTipoCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				serviceController.findAllConfigCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+				customizacaoCbx.selectedIndex = -1;
+				gridCustomizacaoSigla.dataProvider = null;
+				gridCustomizacao.dataProvider = null;
+			}
+			[Bindable]
+			private var comboCustomizacao:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllTipoCustomizacao(event:ResultEvent):void{
+				if(comboCustomizacao.length > 0){
+					comboCustomizacao.removeAll();
+				}
+				comboCustomizacao.addAll(ArrayCollection(event.result));
+				customizacaoCbx.dataProvider = comboCustomizacao;
+			}
+			private function onResultFindAllConfigCustomizacao(event:ResultEvent):void{
+				gridCustomizacao.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function saveOrUpdate():void{
+				if(familiaCbx.selectedIndex == -1){
+					Alert.show("O campo família é obrigatório!","Alerta");
+					return;
+				}
+				if(modeloCbx.selectedIndex == -1){
+					Alert.show("O campo modelo é obrigatório!","Alerta");
+					return;
+				}
+				if(customizacaoCbx.selectedIndex == -1){
+					Alert.show("O campo tração é obrigatório!","Alerta");
+					return; 
+				}
+				configCustomizacao.idFamilia = FamiliaBean(familiaCbx.selectedItem).id;
+				configCustomizacao.idModelo = ModeloBean(modeloCbx.selectedItem).idModelo;
+				configCustomizacao.idTipoCustomizacao = TipoCustomizacaoBean(customizacaoCbx.selectedItem).id;
+				
+				configCustomizacao.siglaCustList = new ArrayCollection();
+				if(gridCustomizacaoSigla.dataProvider != null){
+					for(var i:int = 0; i < ArrayCollection(gridCustomizacaoSigla.dataProvider).length; i++){
+						var obj:Object = ArrayCollection(gridCustomizacaoSigla.dataProvider).getItemAt(i);
+						configCustomizacao.siglaCustList.addItem(obj.sigla);
+					}
+				}
+				serviceController.saveOrUpdate(configCustomizacao);
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Não foi possível realizar transação!","Alerta");
+					return;
+				}
+				configCustomizacao = ConfigurarCustomizacaoBean(event.result);
+				Alert.show("Transação realizada com sucesso!","Alerta");
+				serviceController.findAllConfigCustomizacao(ModeloBean(modeloCbx.selectedItem).idModelo);
+			}
+			
+			
+			
+			protected function button2_clickHandler(event:MouseEvent):void
+			{
+				if(customizacaoTxt.text == ""){
+					Alert.show("O campo sigla da customização é obrigatório!","Alerta");
+					return;
+				}
+				var obj:Object = new Object();
+				obj.sigla = customizacaoTxt.text.toUpperCase();
+				if(gridCustomizacaoSigla.dataProvider == null){
+					gridCustomizacaoSigla.dataProvider = new ArrayCollection();
+					ArrayCollection(gridCustomizacaoSigla.dataProvider).addItem(obj);
+				}else{
+					ArrayCollection(gridCustomizacaoSigla.dataProvider).addItem(obj);
+				}
+				customizacaoTxt.text = '';
+			}
+			
+			private function doubleClickGridCustomizacao():void{
+				if(gridCustomizacao.selectedItem != null){
+					configCustomizacao = ConfigurarCustomizacaoBean(gridCustomizacao.selectedItem);
+					this.selectedFamilia();
+					this.selectedModelo();
+					this.selectedTipoCustomizacao();
+					var customizacaoList:ArrayCollection = new ArrayCollection();
+					
+					if(configCustomizacao.siglaCustList != null){
+						for(var i:int = 0; i < configCustomizacao.siglaCustList.length; i++){
+							var obj:Object = new Object();
+							obj.sigla = configCustomizacao.siglaCustList.getItemAt(i);
+							customizacaoList.addItem(obj);
+						}
+						gridCustomizacaoSigla.dataProvider = customizacaoList;
+					}
+				}
+			}
+			
+			private function selectedFamilia():void{
+				var familiaList:ArrayCollection = ArrayCollection(familiaCbx.dataProvider);
+				for(var i:int=0; i < familiaList.length; i++){
+					var familia:FamiliaBean = FamiliaBean(familiaList.getItemAt(i));
+					if(configCustomizacao.idFamilia == familia.id){
+						familiaCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:ModeloBean = ModeloBean(modeloList.getItemAt(i));
+					if(configCustomizacao.idModelo == modelo.idModelo){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedTipoCustomizacao():void{
+				var tipoCustomizacaooList:ArrayCollection = ArrayCollection(customizacaoCbx.dataProvider);
+				for(var i:int=0; i < tipoCustomizacaooList.length; i++){
+					var tpCustomizacao:TipoCustomizacaoBean = TipoCustomizacaoBean(tipoCustomizacaooList.getItemAt(i));
+					if(configCustomizacao.idTipoCustomizacao == tpCustomizacao.id){
+						customizacaoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function novo():void{
+				configCustomizacao = new ConfigurarCustomizacaoBean();
+				//familiaCbx.selectedIndex = -1;
+				//modeloCbx.dataProvider = null;
+				//modeloCbx.selectedIndex = -1;
+				//				if(comboTracao.length > 0){
+				//					comboTracao.removeAll();
+				//				}
+				//				tracaoCbx.dataProvider = comboTracao;
+				customizacaoCbx.selectedIndex = -1;
+				gridCustomizacaoSigla.dataProvider = null;
+			}
+			
+		]]>
+	</mx:Script>
+	
+	
+	<mx:ArrayCollection id="tipoTracaoCombo">
+		<mx:Object label="Sim" data="S"/>
+		<mx:Object label="Não" data="N"/>
+	</mx:ArrayCollection>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelos" result="onResultFindAllModelos(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTipoCustomizacao" result="onResultFindAllTipoCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigCustomizacao" result="onResultFindAllConfigCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerConfigCustomizacao" result="onResultRemoverConfigCustomizacao(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:DataGrid x="0" y="431" width="100%" height="100%" id="gridCustomizacao" doubleClickEnabled="true" doubleClick="doubleClickGridCustomizacao()">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Customização" dataField="descricao"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCONFCUST', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Configurar Customização" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="169" width="100%" horizontalAlign="center">
+		<mx:VBox height="100%">
+			<mx:Label text="Customização"/>
+			<mx:DataGrid width="332" id="gridCustomizacaoSigla">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Sigla Customização" dataField="sigla"/>
+					<mx:DataGridColumn headerText="Excluir">
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCUST', true))}"/>
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:HBox width="100%">
+				<mx:Label text="Sigla Customização" width="117" />
+				<mx:TextInput maxChars="10" id="customizacaoTxt" width="133"/>
+				<mx:Button label="ADD" click="button2_clickHandler(event)"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:HBox x="0" y="48" width="100%" horizontalAlign="center">
+		<mx:Form> 
+			<mx:FormItem label="Família" required="true">
+				<mx:ComboBox id="familiaCbx" selectedIndex="-1" labelField="descricao" prompt="Selecione" change="familiaCbx_changeHandler(event)" dataProvider="{comboFamilia}"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox x="48" y="1" id="modeloCbx" labelField="descricao" dataProvider="{comboModelo}" change="onChangeModelo()" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo Customizacao" required="true">
+				<mx:ComboBox x="48" y="1" id="customizacaoCbx" labelField="descricao" dataProvider="{comboCustomizacao}" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Tipo Tração" required="true">
+			<mx:ComboBox id="tipoTracaoCbx" labelField="descricao" />
+			</mx:FormItem-->
+		</mx:Form>
+	</mx:HBox>
+	<mx:HBox x="0" y="387" width="100%" horizontalAlign="center">
+		<mx:Button label="Salvar" click="saveOrUpdate()"/>
+		<mx:Button label="Novo" click="novo()"/>
+	</mx:HBox>
+	
+</mx:Canvas>

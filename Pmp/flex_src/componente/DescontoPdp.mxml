@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.DescontoPdpBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var descontoPdp:DescontoPdpBean = new DescontoPdpBean();
+			
+			public function init(urlLogin:String):void{
+				gridDP.addEventListener("REMOVERDESCONTOPDP", removerDP);
+				
+				myValidators = new Array();
+				myValidators.push(campoDescricao);
+				this.urlLogin = urlLogin;
+				serviceController.findAllDescontoPdp();
+			}
+			
+			private function removerDP(ev: Event): void{
+				serviceController.remover(gridDP.selectedItem);
+			}
+			
+			private function onResultFindAllDescontoPdp(event:ResultEvent):void{
+				gridDP.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function onResultRemover(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					var grid:ArrayCollection = ArrayCollection(gridDP.dataProvider);
+					grid.removeItemAt(gridDP.selectedIndex);
+					novoDP();
+					return;
+				}
+				Alert.show("Não foi possível remover Desconto Pdp!", "Alerta");
+			}
+			
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				descontoPdp = DescontoPdpBean(event.result);
+				if(descontoPdp != null){
+					Alert.show("Desconto Pdp salvo com sucesso!", "Alerta");
+					serviceController.findAllDescontoPdp();
+					return;
+				}
+				Alert.show("Erro ao salvar Desconto Pdp!", "Alerta");
+			}
+			
+			private function saveOrUpdate():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					descontoPdp.descricao = descricao.text;
+					serviceController.saveOrUpdate(descontoPdp);
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+			}
+			
+			public function novoDP():void{
+				descricao.text = "";
+				descontoPdp = new DescontoPdpBean();
+			}
+			
+			private function doubleClickGrid():void{
+				if(gridDP.selectedItem != null)
+				descontoPdp = DescontoPdpBean(gridDP.selectedItem);
+				descricao.text = descontoPdp.descricao;
+			}
+		]]>
+	</mx:Script>
+	
+	
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo é obrigatório!" required="true" source="{descricao}" property="text" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllDescontoPdp" result="onResultFindAllDescontoPdp(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="remover" result="onResultRemover(event);ProgressBarHelper.removeProgressBar()" />	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Desconto Pdp" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:VBox x="0" y="49" width="100%" horizontalAlign="center" verticalAlign="middle" paddingBottom="3" paddingTop="3">
+		<mx:FormItem label="Descricao" required="true" width="259">
+			<mx:TextInput id="descricao"/>
+		</mx:FormItem>
+			
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Salvar" click="saveOrUpdate()"/>
+			<mx:Button label="novo" click="novoDP()"/>
+		</mx:HBox>
+	</mx:VBox>
+	<mx:VBox x="0" y="150" width="100%" height="100%" paddingBottom="10" paddingLeft="3" paddingRight="3" paddingTop="2">
+		<mx:DataGrid width="100%" height="352" id="gridDP" doubleClick="doubleClickGrid()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Desconto Pdp" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Excluir">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERDESCONTOPDP', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:VBox>
+	
+</mx:Canvas>

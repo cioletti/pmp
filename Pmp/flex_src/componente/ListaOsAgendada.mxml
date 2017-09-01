@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Lista de OS" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="330" height="250">
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			
+			import mx.collections.ArrayCollection;
+			[Bindable]
+			private var urlLogin:String;
+			[Bindable]
+			public var ag:ArrayCollection = null;
+			[Bindable]
+			public var agendamento:AgendamentoBean = null;
+			public var opcaoAgObs:String;
+			
+			public function init(urlLogin:String, ag:ArrayCollection):void{
+				this.urlLogin = urlLogin;
+				opcaoAgObs = null;	
+				this.ag = ag;
+			}
+			private function doubleClickGrid():void{
+				this.agendamento = gridOs.selectedItem as AgendamentoBean;	
+				this.close();
+			}
+
+			protected function obsBtn_clickHandler(event:MouseEvent):void
+			{
+				opcaoAgObs = "Obs"
+				this.close();
+			}
+
+
+			protected function agendamentoBtn_clickHandler(event:MouseEvent):void
+			{
+				opcaoAgObs = "Ag";
+				this.close();
+			}
+
+		]]>
+	</mx:Script>
+	<mx:VBox width="100%" height="100%" horizontalAlign="center">
+		
+		<mx:DataGrid x="0" y="0" width="100%" height="70%" dataProvider="{ag}" id="gridOs" doubleClick="doubleClickGrid()" doubleClickEnabled="true" toolTip="Clique duas vezes para verificar detalhes.">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Número de OS" dataField="numOs"/>
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Incluir Agendamento" id="agendamentoBtn" click="agendamentoBtn_clickHandler(event)"/>
+			<mx:Button label="Incluir Obs." id="obsBtn" click="obsBtn_clickHandler(event)"/>
+		</mx:HBox>
+	</mx:VBox>
+	
+</util:ModuleTitleWindow>

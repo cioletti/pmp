@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.FilialBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.findAllFilial();
+			}
+			private function onResultFindAllFilial(event:ResultEvent):void{
+				filialCbx.dataProvider = ArrayCollection(event.result);
+			}
+
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				if(filialCbx.selectedIndex == -1){
+					Alert.show("Selecione uma filial","Alerta");
+					return;
+				}
+				if(cnpjText.text == ""){
+					Alert.show("Entre com o CNPJ","Alerta");
+					return;
+				}
+				if(razaoSocialText.text == ""){
+					Alert.show("Entre com o CNPJ","Alerta");
+					return;
+				}
+				if(enderecoText.text == ""){
+					Alert.show("Entre com o CNPJ","Alerta");
+					return;
+				}
+				if(cepText.text == ""){
+					Alert.show("Entre com o CNPJ","Alerta");
+					return;
+				}
+				FilialBean(filialCbx.selectedItem).cnpj = cnpjText.text;
+				FilialBean(filialCbx.selectedItem).razaoSocial = razaoSocialText.text;
+				FilialBean(filialCbx.selectedItem).endereco = enderecoText.text;
+				FilialBean(filialCbx.selectedItem).cep = cepText.text;
+				serviceController.alterarFilial(FilialBean(filialCbx.selectedItem));
+			}
+			private function onResultAlterarFilial(event:ResultEvent):void
+			{
+				if(Boolean(event.result) == true){
+					Alert.show("CNPJ Atualizado com sucesso!","Alerta");
+					return;
+				}
+				Alert.show("Não foi possível atualizar CNPJ!","Alerta");
+			}
+
+
+			protected function filialCbx_changeHandler(event:ListEvent):void
+			{
+				cnpjText.text = FilialBean(filialCbx.selectedItem).cnpj;
+				razaoSocialText.text = FilialBean(filialCbx.selectedItem).razaoSocial;
+				enderecoText.text = FilialBean(filialCbx.selectedItem).endereco;
+				cepText.text = FilialBean(filialCbx.selectedItem).cep;
+			}
+
+		]]>
+	</mx:Script>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllFilial" result="onResultFindAllFilial(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="alterarFilial" result="onResultAlterarFilial(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Atualizar CNPJ Filial" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="83" width="100%" horizontalAlign="center">
+		<mx:Form>
+			<mx:FormItem label="Filial">
+			<mx:ComboBox labelField="stnm" id="filialCbx" prompt="Selecione" change="filialCbx_changeHandler(event)"></mx:ComboBox>
+				
+			</mx:FormItem>
+			<mx:FormItem label="Razão Social">
+				<mx:TextInput id="razaoSocialText" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Endereço">
+				<mx:TextInput id="enderecoText" maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="CEP">
+				<mx:TextInput id="cepText" maxChars="50"/>
+			</mx:FormItem>
+			<mx:FormItem label="CNPJ">
+				<mx:TextInput id="cnpjText" maxChars="50"/>
+			</mx:FormItem>
+			<mx:FormItem>
+				<mx:Button label="Salvar" click="button1_clickHandler(event)"/>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:HBox>
+	
+</mx:Canvas>

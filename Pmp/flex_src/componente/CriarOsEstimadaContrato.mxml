@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*"  width="986" height="400" xmlns:componente="componente.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.CentroDeCustoBean;
+			import bean.ComponenteCodeBean;
+			import bean.ContratoComercialBean;
+			import bean.FilialBean;
+			import bean.JobCodeBean;
+			import bean.JobControlBean;
+			import bean.OperacionalBean;
+			import bean.OsEstimada;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ResizeEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlReport:String;
+			private var numeroContrato:String;	
+			private var operacionalBean:OperacionalBean;
+			private var usuarioBean:UsuarioBean;
+			public function init(urlLogin:String, numeroContrato:String, operacionalBean:OperacionalBean, usuarioBean:UsuarioBean):void{
+				this.operacionalBean = operacionalBean;
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;
+				estimateBy.text = this.usuarioBean.estimateBy;
+				this.numeroContrato = numeroContrato;
+				//centroDeCustoContaContabil.operacional = operacionalBean;
+				this.resizeCanvas(null);
+				if(operacionalBean.siglaClassificacaoContrato == 'PLUS'){
+					compCode.text = '8895'
+				}
+				
+			}
+			private function resizeCanvas(ev: Event):void
+			{
+//				centroDeCustoCanvas.height = 0;
+//				centroDeCustoCanvas.width = 0;
+//				
+//				osCanvas.percentHeight = 100;
+//				osCanvas.percentWidth = 100;
+				serviceController.findAllFiliais();
+				serviceController.findAllJobControl();
+				serviceController.findAllJobCode();
+				//serviceController.findAllContratosAbertos();
+				//serviceController.findEstimateBy();
+				//centroDeCusto.text = CentroDeCustoBean(centroDeCustoContaContabil.ccCbx.selectedItem).sigla;
+				codigoCliente.text = operacionalBean.codigoCliente;
+				numeroSerie.text = operacionalBean.numeroSerie;
+				
+			}
+			private function onResultFindAllFiliais(event:ResultEvent):void{
+				filialCbx.dataProvider = event.result;
+				this.fixFilial();
+			}
+			private function onResultFindAllJobControl(event:ResultEvent):void{
+				jobControlCbx.dataProvider = event.result;
+				this.fixJobControl();
+			}
+			private function onResultFindAllJobCode(event:ResultEvent):void{
+				jobCodeCbx.dataProvider = event.result;
+				this.fixJobCode();
+			}
+//			private function onResultFindAllContratosAbertos(event:ResultEvent):void{
+//				contratoCbx.dataProvider = event.result;
+//			}
+//			private function onResultFindAllCompCode(event:ResultEvent):void{
+//				gridCompCode.dataProvider = event.result;
+//			}
+			private function onResultFindEstimateBy(event:ResultEvent):void{
+				estimateBy.text = event.result as String;
+			}
+			private function onResultNewOsEstimada(event:ResultEvent):void{
+				osEstimada = OsEstimada(event.result);
+				if(osEstimada.msg != ''){
+					dispatchEvent(new Event('REMOVERPOPUP', true));
+					Alert.show(osEstimada.msg, "Alerta");
+					osEstimada.msg = '';
+					return;
+				}
+				dispatchEvent(new Event('REMOVERPOPUP', true));
+				Alert.show("Os estimada criada com sucesso!", "Alerta");
+			}
+//			private var contrato:ContratoComercialBean;
+//			private function setDataOsEstimada():void{
+//				//contrato = ContratoComercialBean(contratoCbx.selectedItem);
+//				codigoCliente.text = contrato.codigoCliente;
+//				numeroSerie.text = contrato.prefixo+contrato.numeroSerie;
+//				centroDeCusto.text = centroDeCustoContaContabil.beanV.centroDeCustoSigla;
+//			}
+			
+			
+			
+			private var osEstimada:OsEstimada = new OsEstimada();
+			protected function criarOs_clickHandler(event:MouseEvent):void
+			{
+				if(this.operacionalBean.codErroDbs == '100'){
+					Alert.show("Aguarde o retorno do DBS!", "Alerta");
+					return;
+				}
+				serviceController.validarNumSerie(numeroSerie.text);
+			}
+			
+//			private function findAllCompCode():void{
+//				serviceController.findAllCompCode(compCodePesquisa.text);
+//			}
+//			
+//			private function doubleClickGridCompCode():void{
+//				compCode.text = ComponenteCodeBean(gridCompCode.selectedItem).id;
+//			}
+//			private function creationComplete():void{
+//				centroDeCustoContaContabil.addEventListener("REGRAVALIDA", resizeCanvas);
+//				centroDeCustoContaContabil.init(this.urlLogin);
+//				
+//			}
+			
+			private function fixFilial():void{
+				var filialList:ArrayCollection = ArrayCollection(filialCbx.dataProvider);
+				for(var i:int=0; i < filialList.length; i++){
+					var f:FilialBean = FilialBean(filialList.getItemAt(i));
+					if(f.stno == Number(operacionalBean.filial)){
+						filialCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixJobControl():void{
+				var jcList:ArrayCollection = ArrayCollection(jobControlCbx.dataProvider);
+				for(var i:int=0; i < jcList.length; i++){
+					var jc:JobControlBean = JobControlBean(jcList.getItemAt(i));
+					if(jc.descricao == 'SV'){
+						jobControlCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function fixJobCode():void{
+				var jcodeList:ArrayCollection = ArrayCollection(jobCodeCbx.dataProvider);
+				for(var i:int=0; i < jcodeList.length; i++){
+					var jcode:JobCodeBean = JobCodeBean(jcodeList.getItemAt(i));
+					if(operacionalBean.siglaClassificacaoContrato == 'PLUS'){
+						if(jcode.id == '103'){
+							jobCodeCbx.selectedIndex = i;
+							break;
+						}
+					}else{
+						if(jcode.id == '041'){
+							jobCodeCbx.selectedIndex = i;
+							break;
+						}
+					}
+					
+				}
+			}
+			
+			private function onValidarNumSerie(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					if(filialCbx.selectedIndex == -1 || jobControlCbx.selectedIndex == -1 || jobCodeCbx.selectedIndex == -1 || codigoCliente.text == ''
+						|| estimateBy.text == '' || make.text == '' || numeroSerie.text == '' || segmento.text == ''
+						//|| centroDeCusto.text == '' 
+						|| compCode.text == ''){
+						Alert.show("Todos os campos são de preenchimento obrigatórios!", "Alerta");
+						ProgressBarHelper.removeProgressBar();
+						return;
+					}
+					osEstimada.filial = filialCbx.selectedItem.stno.toString();
+					osEstimada.jobControl = JobControlBean(jobControlCbx.selectedItem).descricao;
+					osEstimada.codigoCliente = codigoCliente.text;
+					osEstimada.estimateBy = estimateBy.text;
+					osEstimada.make = make.text;
+					osEstimada.numeroSerie = numeroSerie.text;
+					osEstimada.segmento = segmento.text;
+					//osEstimada.centroDeCusto = centroDeCusto.text;
+					osEstimada.jobCode = JobCodeBean(jobCodeCbx.selectedItem).id;
+					osEstimada.numContrato = this.numeroContrato;
+					osEstimada.componenteCode = compCode.text;
+					//osEstimada.vcc = centroDeCustoContaContabil.beanV;
+					serviceController.newOsEstimadaContrato(osEstimada);
+			}else{
+				Alert.show("O número de série não é válido confira no DBS!","Alerta");
+				ProgressBarHelper.removeProgressBar();
+			}
+		}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="findAllFiliais" result="onResultFindAllFiliais(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllJobControl" result="onResultFindAllJobControl(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllJobCode" result="onResultFindAllJobCode(event);ProgressBarHelper.removeProgressBar()"/>
+		<!--mx:method name="findAllContratosAbertos" result="onResultFindAllContratosAbertos(event);ProgressBarHelper.removeProgressBar()"/-->
+		<!--mx:method name="findAllCompCode" result="onResultFindAllCompCode(event);ProgressBarHelper.removeProgressBar()"/-->
+		<mx:method name="findEstimateBy" result="onResultFindEstimateBy(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="newOsEstimadaContrato" result="onResultNewOsEstimada(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="validarNumSerie" result="onValidarNumSerie(event)"/>
+	</mx:RemoteObject>
+	<mx:Resize id="resizeEffect"   duration="1000"/>
+	<!--mx:Canvas width="0%" height="0%" resizeEffect="resizeEffect" id="centroDeCustoCanvas" backgroundColor="white">
+		<componente:CentroDeCustoContaContabil id="centroDeCustoContaContabil" creationComplete="creationComplete()" width="886" height="367">
+		</componente:CentroDeCustoContaContabil>
+	</mx:Canvas-->	
+	<mx:Canvas width="100%" height="100%" resizeEffect="resizeEffect" id="osCanvas" creationPolicy="all" backgroundColor="white">
+		<mx:HRule x="0" y="86" width="100%"/>
+		<mx:HRule x="0" y="220" width="100%"/>
+		<mx:ComboBox width="112" x="258" y="133" prompt="Selecione"  id="jobControlCbx" labelField="descricao" selectedIndex="-1"></mx:ComboBox>
+		<mx:ComboBox x="10" y="133" id="filialCbx" labelField="stnm" prompt="Selecione"  selectedIndex="-1" width="240"></mx:ComboBox>
+		<mx:ComboBox x="255" y="264" id="jobCodeCbx" labelField="label" prompt="Selecione"  selectedIndex="-1" width="276"></mx:ComboBox>
+		<mx:TextInput width="111" x="378" y="134"/>
+		<mx:TextInput width="111" x="735" y="134" id="numeroSerie" editable="false"/>
+		<mx:TextInput width="111" x="99" y="264" id="segmento" text="01" editable="false" textAlign="center"/>
+		<!--mx:TextInput width="111" x="129" y="265" id="centroDeCusto" editable="false" textAlign="center"/-->
+		<mx:TextInput width="111" x="547" y="265" id="compCode" editable="false" text="8898"/>
+		<mx:TextInput width="111" x="616" y="134" id="make" text="AA" textAlign="center" editable="false"/>
+		<mx:TextInput width="111" x="497" y="134" id="estimateBy" editable="false"/>
+		<mx:TextInput width="111" x="378" y="134" id="codigoCliente" editable="false" />
+		<mx:Label x="64" y="107" text="Filial"/>
+		<mx:Label x="10" y="194" text="Segmento da Ordem de Serviço" fontWeight="bold"/>
+		<mx:Label x="10" y="60" text="Cabeçalho da Ordem de Serviço" fontWeight="bold"/>
+		<mx:Label x="114" y="238" text="Segmento Os"/>
+		<!--mx:Label x="136" y="239" text="Centro de Custo"/-->
+		<mx:Label x="378" y="239" text="Job Code"/>
+		<mx:Label x="547" y="242" text="Comp. Code"/>
+		<!--mx:Label x="686" y="239" text="Buscar Comp. Code"/-->
+		<mx:Label x="275" y="107" text="Job Control"/>
+		<mx:Label x="390" y="107" text="Código Cliente"/>
+		<mx:Label x="519" y="107" text="Etimate By"/>
+		<mx:Label x="650" y="107" text="Make"/>
+		<mx:Label x="739" y="107" text="Número de Série"/>
+		<!--mx:ComboBox x="371" y="35" id="contratoCbx" change="setDataOsEstimada()" labelField="numeroContrato" prompt="Selecione" selectedIndex="-1"></mx:ComboBox-->
+		<mx:Button x="382" y="312" label="Criar Os Estimada" id="criarOs"  click="criarOs_clickHandler(event)"/>
+		<!--mx:DataGrid x="698" y="265" id="gridCompCode" height="92" width="244" doubleClick="doubleClickGridCompCode()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Comp. Code" dataField="label"/>
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:VRule x="676" y="230" height="127"/>
+		<mx:TextInput x="807" y="238" width="135" id="compCodePesquisa" change="findAllCompCode()"/-->
+		
+	</mx:Canvas>	
+</mx:Canvas>

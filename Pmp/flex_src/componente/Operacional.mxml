@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.OperacionalBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;			
+			
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var operacional:OperacionalBean = new OperacionalBean();
+			public var configuracaoOperacional: ConfiguracaoOperacional;
+			[Bindable]
+			private var paginaAtual:Number=0;
+			[Bindable]
+			private var totalRegistros:Number;
+			
+			private var filtroUmaPendente:String;
+			private var filtroPendentes:String;
+			private var filtroEncerradas:String;
+			private var filtroHoras50:String;
+			private var ordenarHorimetro:String;
+			private var ordenarData:String;
+			private var campoPesquisa:String = "";
+			private var usuario:UsuarioBean;
+
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				this.urlLogin = urlLogin;
+				this.usuario = usuario;
+				paginateGrid();
+				hrPendentesCbx.dataProvider = hrPendentesColl;
+				dataCbx.dataProvider = dataColl;
+				situacaoContratoCbx.dataProvider = filtroSituacaoColl;
+				voltarBtn.label = '<<';
+				avancarBtn.label = '>>';
+			}
+			
+			private function paginateGrid():void{				
+				filtroUmaPendente = 'S';
+				filtroPendentes = 'S';
+				filtroEncerradas = 'N';
+				filtroHoras50 = 'S';
+				ordenarHorimetro = null;
+				ordenarData = null
+				//operacionalByFiltro();
+			}
+			
+			private function operacionalByFiltro():void{
+				//serviceController.findAllOperacionalByFiltro('S','S','N','S', null, null, inicial, numRegistros);
+				var inicial:Number =  Number(quantidadeCbx.selectedLabel) * paginaAtual;
+				var numRegistros:Number = Number(quantidadeCbx.selectedLabel);
+				serviceController.findAllOperacionalByFiltro(filtroUmaPendente,filtroPendentes,filtroEncerradas,filtroHoras50, ordenarHorimetro,
+					ordenarData, inicial, numRegistros, campoPesquisa);
+			}
+			
+			private function setarValoresPadrao():void{
+			//	quantidadeCbx.selectedIndex = 0;
+			//	paginaAtual =0;
+			}
+			
+			private function onResultFindAllOperacionalByFiltro(event:ResultEvent):void{
+								
+				var operacionalArrayAux:ArrayCollection = ArrayCollection(event.result);
+				gridOP.dataProvider = operacionalArrayAux;
+				
+				for(var i:int = 0; i < operacionalArrayAux.length; i++){
+					var oper:OperacionalBean = OperacionalBean(operacionalArrayAux.getItemAt(i));
+					
+					if(!isNaN(oper.numLinhas)){
+						totalRegistros = oper.numLinhas;
+						break;
+					}
+				}
+				
+				var numPaginas:int = Math.ceil(totalRegistros / Number(quantidadeCbx.selectedLabel));
+				
+				if(numPaginas > (paginaAtual+1))
+				{					
+					avancarBtn.enabled = true;
+				}
+				else
+				{
+					avancarBtn.enabled = false;
+					voltarBtn.enabled = true;
+				}
+				paginas.removeAllChildren();
+				
+				if(numPaginas > 1){
+					for(var j:int = 0; j < numPaginas;j++){
+						var obj:Object = new Object();
+						obj.numPagina = numPaginas;
+						var numPagina:Label = new Label();
+						numPagina.text = (j+1)+"";
+						obj.pagina = (1+j);
+						numPagina.data = obj;
+						numPagina.addEventListener(MouseEvent.CLICK,clickPage);
+						numPagina.buttonMode = true;
+						paginas.addChild(numPagina);
+						if(paginaAtual == j){
+							numPagina.setStyle("fontWeight", 'bold');
+						}
+					}
+				}else{
+					avancarBtn.enabled = false;
+					voltarBtn.enabled = false;
+					var numPaginaAux:Label = new Label();
+					numPaginaAux.text = 1+"";
+					numPaginaAux.setStyle("fontWeight", 'bold');
+					paginas.addChild(numPaginaAux);
+				}
+			}	
+			
+			private function clickPage(event:MouseEvent):void{
+
+//				paginas.removeAllChildren();
+//				var obj:Object = Object(Label(event.currentTarget).data);
+//				for(var j:int = 0; j < obj.numPagina;j++){
+//					var objAux:Object = new Object();
+//					objAux.numPagina = obj.numPagina;
+//					
+//					var numPagina:Label = new Label();
+//					numPagina.text = (j+1)+"";
+//					objAux.pagina = (1+j);
+//					numPagina.data = objAux;
+				//					numPagina.addEventListener(MouseEvent.CLICK,clickPage);
+//					numPagina.buttonMode = true;
+//					paginas.addChild(numPagina);
+//					
+////					if(Object(Label(event.currentTarget).data).pagina == objAux.pagina){
+////						numPagina.setStyle("fontWeight", 'bold');
+////					}
+//				}
+				
+				var numPage:Number = Object(Label(event.currentTarget).data).pagina;
+				paginaAtual = numPage -1;
+				operacionalByFiltro();
+//				var qtdPagina:Number = Number(quantidadeCbx.selectedItem.label);
+//				if(numPage == 1){
+//					voltarBtn.enabled = false;
+//				}else{
+//					
+//				}
+				//Alert.show((numPage*qtdPagina)+" ate onde vou");
+				//Alert.show((numPage*qtdPagina) - qtdPagina+" onde vou partir");
+//				Label(event.currentTarget).setStyle("fontWeight", 'bold');
+//				Alert.show(numPage+"");
+				//serviceController.findAllOperacionalByFiltro('S','S','N','S', null, null, ((numPage*qtdPagina) - qtdPagina), Number(quantidadeCbx.selectedLabel));
+				
+			}
+			
+	//			private function findAllOperacionalByFiltro():void{	
+	//				filtroUmaPendente = (umaPendente.selected == true)?'S':'N';
+	//				filtroPendentes = (pendente.selected == true)?'S':'N';
+	//				filtroEncerradas = (encerradas.selected == true)?'S':'N';
+	//				filtroHoras50 = (horas50.selected == true)?'S':'N';
+	//				ordenarHorimetro = null;
+	//				ordenarData = null
+	//				campoPesquisa = "";
+	//					
+	//				setarValoresPadrao();
+	//				
+	//				operacionalByFiltro();
+	//				
+	//			}
+			 
+		
+			private function doubleClickGrid():void{
+				
+				if(gridOP.selectedItem != null){
+				operacional = OperacionalBean(gridOP.selectedItem);
+				
+				configuracaoOperacional = new ConfiguracaoOperacional();
+				configuracaoOperacional.recebeObjeto(operacional);
+				configuracaoOperacional.addEventListener(CloseEvent.CLOSE, removePopUp);
+				PopUpManager.addPopUp(configuracaoOperacional, this, true);
+				PopUpManager.centerPopUp(configuracaoOperacional);
+				configuracaoOperacional.init(urlLogin, OperacionalBean(gridOP.selectedItem), this.usuario);
+					
+				}
+			}
+			
+			private function removePopUp(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				
+				if(configuracaoOperacional.isSave == true){
+					filtroUmaPendente = 'S';
+					filtroPendentes = 'S';
+					filtroEncerradas = 'N';
+					filtroHoras50 = 'S';
+					ordenarHorimetro = null;
+					ordenarData = null;
+					
+					setarValoresPadrao();
+					operacionalByFiltro();
+				}
+				
+				//serviceController.findAllOperacionalByFiltro('S','S','N','S', null, null);
+			}
+
+
+			protected function horimetroCbx_changeHandler(event:ListEvent):void
+			{
+				filtroUmaPendente = 'S';
+				filtroPendentes = 'S';
+				filtroEncerradas = 'N';
+				filtroHoras50 = 'S';
+				ordenarHorimetro = hrPendentesCbx.selectedItem.valor;
+				ordenarData = null;
+				
+				setarValoresPadrao();
+				
+				operacionalByFiltro();
+				
+				//serviceController.findAllOperacionalByFiltro('S','S','N','S', hrPendentesCbx.selectedItem.valor, null);
+			}
+
+
+			protected function dataCbx_changeHandler(event:ListEvent):void
+			{
+				filtroUmaPendente = 'S';
+				filtroPendentes = 'S';
+				filtroEncerradas = 'N';
+				filtroHoras50 = 'S';
+				ordenarHorimetro = null;
+				ordenarData = dataCbx.selectedItem.valor;
+				
+				setarValoresPadrao();
+				
+				operacionalByFiltro();
+				
+				//serviceController.findAllOperacionalByFiltro('S','S','N','S',null, dataCbx.selectedItem.valor);
+			}
+
+
+			protected function voltarBtn_clickHandler(event:MouseEvent):void
+			{
+				paginaAtual -= 1;
+				operacionalByFiltro();
+			}
+
+
+			protected function avancarBtn_clickHandler(event:MouseEvent):void
+			{
+				paginaAtual += 1;
+				operacionalByFiltro();
+			}
+
+
+			protected function quantidadeCbx_changeHandler(event:ListEvent):void
+			{
+				paginaAtual = 0;
+				operacionalByFiltro();
+				
+			}
+
+
+			protected function pesquisaBtn_clickHandler(event:MouseEvent):void
+			{
+				if(campoPesquisaTxt.text == ""){
+					Alert.show("O campo pesquisa é obrigatório.", "Alerta!");
+					return;
+				}
+				campoPesquisa = campoPesquisaTxt.text;
+				
+				operacionalByFiltro();
+			}
+
+
+			protected function situacaoContratoCbx_changeHandler(event:ListEvent):void
+			{
+				var inicial:Number =  Number(quantidadeCbx.selectedLabel) * paginaAtual;
+				var numRegistros:Number = Number(quantidadeCbx.selectedLabel);
+				var situacaoContratoSTR:String = String(situacaoContratoCbx.selectedItem.valor);
+				
+				ordenarHorimetro = null;
+				ordenarData = null
+				campoPesquisa = "";
+				if(situacaoContratoSTR == 'T'){
+					filtroUmaPendente = 'S';
+					filtroPendentes = 'S';
+					filtroEncerradas = 'N';
+					filtroHoras50 = 'S';
+				} else if(situacaoContratoSTR == 'UP'){
+					filtroUmaPendente = 'S';
+					filtroPendentes = 'N';
+					filtroEncerradas = 'N';
+					filtroHoras50 = 'N';
+				} else if(situacaoContratoSTR == 'P'){
+					filtroUmaPendente = 'N';
+					filtroPendentes = 'S';
+					filtroEncerradas = 'N';
+					filtroHoras50 = 'N';
+				} else if(situacaoContratoSTR == 'E'){
+					filtroUmaPendente = 'N';
+					filtroPendentes = 'N';
+					filtroEncerradas = 'S';
+					filtroHoras50 = 'N';
+				} else if(situacaoContratoSTR == 'MI50H'){
+					filtroUmaPendente = 'N';
+					filtroPendentes = 'N';
+					filtroEncerradas = 'N';
+					filtroHoras50 = 'S';
+				}
+					serviceController.findAllOperacionalByFiltro(filtroUmaPendente,filtroPendentes,filtroEncerradas,filtroHoras50, ordenarHorimetro,
+					ordenarData, inicial, numRegistros, campoPesquisa);
+			}
+
+		]]>
+	</mx:Script>	
+	<mx:ArrayCollection id="filtroSituacaoColl">
+		<mx:Object label="Todas Revisões" valor="T"/>
+		<mx:Object label="Todas Com Mais de uma Revisão Pendente" valor="P"/>
+		<mx:Object label="Todas Com Uma Revisão Pendente" valor="UP"/>
+		<mx:Object label="Todas Com as Revisões Encerradas" valor="E"/>
+		<mx:Object label="Todas Com Horímetro Menor ou Igual a 50 Horas" valor="MI50H"/>
+	</mx:ArrayCollection>
+	<mx:ArrayCollection id="hrPendentesColl">
+		<mx:Object label="Crescente" valor="C"/>
+		<mx:Object label="Decrescente" valor="D"/>
+	</mx:ArrayCollection>
+	
+	<mx:ArrayCollection id="dataColl">
+		<mx:Object label="Crescente" valor="C"/>
+		<mx:Object label="Decrescente" valor="D"/>
+	</mx:ArrayCollection>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllOperacionalByFiltro" result="onResultFindAllOperacionalByFiltro(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Operacional" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<!--mx:CheckBox x="102" y="37" id="umaPendente" selected="true" label="Uma Pendente" color="#B8860B" />
+	<mx:CheckBox x="10" y="37" id="pendente" selected="true"  label="Pendentes" color="#006400" />
+	<mx:CheckBox x="218" y="37" id="encerradas"  label="Encerradas" color="#EE0000" />
+	<mx:CheckBox x="310" y="37" id="horas50" selected="true" label="50 Horas" color="#EE0000" />
+	<mx:Button x="400" y="39" label="Filtrar" click="findAllOperacionalByFiltro()" height="18" /-->
+	
+	<mx:VBox x="0" y="70" width="100%" height="100%" paddingBottom="10" paddingLeft="3" paddingRight="3" paddingTop="2">
+		<mx:DataGrid width="100%" height="95%" id="gridOP" doubleClick="doubleClickGrid()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Situação">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="{data.situacaoImagem}" width="15" buttonMode="true" height="15"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+				</mx:DataGridColumn>
+				<mx:DataGridColumn headerText="Cliente" dataField="nomeCliente"/>
+				<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+				<mx:DataGridColumn headerText="Nº.&#13;Serie" dataField="numeroSerie"/>
+				<mx:DataGridColumn headerText="Rev.&#13;Pendentes" dataField="revPendentes"/>
+				<mx:DataGridColumn headerText="Horímetro" dataField="horimetro"/>
+				<mx:DataGridColumn headerText="At.&#13;Horímetro" dataField="dataAtualizacaoHorimetro"/>
+				<mx:DataGridColumn headerText="Hr.&#13;Pendentes" dataField="horasPendentes"/>
+				<mx:DataGridColumn headerText="Pr.&#13;Revisão" dataField="proximaRevisao"/>
+				<mx:DataGridColumn headerText="Dias&#13;Pr. Revisão" dataField="diasProximaRevisao"/>
+				<mx:DataGridColumn headerText="Dias&#13;Pr. Revisão&#13;Gerador" dataField="mediaDiasProximaRevisao"/>
+				<mx:DataGridColumn headerText="Nº.&#13;OS" dataField="numOs"/>
+				<mx:DataGridColumn headerText="Nº.&#13;Contrato" dataField="numeroContrato"/>				
+				<!--mx:DataGridColumn headerText="Data" dataField="dataContrato"/-->
+				<!--mx:DataGridColumn headerText="Consultor" dataField="consultor"/-->
+				<!--mx:DataGridColumn headerText="Valor" dataField="valorContrato"/-->
+				<!--mx:DataGridColumn headerText="Qtd. Parcelas" dataField="numeroParcela"/-->
+				<mx:DataGridColumn headerText="Origem" dataField="origem"/>
+				<mx:DataGridColumn headerText="Destino" dataField="destino"/>
+				<!--mx:DataGridColumn headerText="TA" dataField="ta"/-->
+				<mx:DataGridColumn headerText="Pl Ativo" dataField="plAtivo"/>
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:HBox width="100%">
+			<mx:Button label="" id="voltarBtn" enabled="{paginaAtual!=0}" click="voltarBtn_clickHandler(event)"/>
+			<mx:HBox id="paginas">
+			</mx:HBox>
+			<mx:Button label="" id="avancarBtn" click="avancarBtn_clickHandler(event)"/>
+			<mx:Label x="114" text="Registros por página:" bottom="12"/>
+			<mx:ComboBox id="quantidadeCbx" bottom="10" change="quantidadeCbx_changeHandler(event)" >
+				<mx:dataProvider>
+					<mx:Array>
+						<mx:Object label="30"/>
+						<mx:Object label="60"/>
+						<mx:Object label="100"/>
+					</mx:Array>
+				</mx:dataProvider>
+			</mx:ComboBox>
+			<!--mx:Label left="298" bottom="12" text="Total de registros: {totalRegistros}"/-->			
+		</mx:HBox>
+	</mx:VBox>
+	<mx:ComboBox x="931" y="37" id="hrPendentesCbx" change="horimetroCbx_changeHandler(event)" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+	<mx:Label x="786" y="39" text="Ordernar Hr. Pendentes"/>
+	<mx:ComboBox x="618" y="37" id="dataCbx" change="dataCbx_changeHandler(event)" prompt="Selecione" selectedIndex="-1"></mx:ComboBox>
+	<mx:ComboBox x="114" y="37" id="situacaoContratoCbx"  prompt="Selecione" selectedIndex="-1" change="situacaoContratoCbx_changeHandler(event)"></mx:ComboBox>
+	<mx:Label x="478" y="39" text="Ordernar At. Horímetro"/>
+	<mx:Label x="8" y="39" text="Situação contrato"/>
+	<mx:Label x="1099" y="39" text="Pesquisar:"/>
+	<mx:TextInput x="1171" y="38" width="92" id="campoPesquisaTxt" toolTip="Digite: Número do Contrato, Modelo, Série, Cliente ou Número OS para fazer uma pesquisa." />
+	<mx:Button x="1271" y="37" id="pesquisaBtn" label="Pesquisar" click="pesquisaBtn_clickHandler(event)"/>
+</mx:Canvas>

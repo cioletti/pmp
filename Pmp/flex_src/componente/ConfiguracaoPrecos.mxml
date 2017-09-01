@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ConfiguracaoPrecosBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var myValidators:Array;
+
+			[Bindable]
+			private	var confPrecos:ConfiguracaoPrecosBean = new ConfiguracaoPrecosBean();
+			
+			public function findConfiguracaoPrecos(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				gridConfPrecos.addEventListener("REMOVERCONFPRECO", remover);
+				myValidators = new Array();
+				myValidators.push(campoDescricao);
+				myValidators.push(campoHHPmp);
+				myValidators.push(campoValorKmPmp);
+				myValidators.push(campoKmPmp);
+				myValidators.push(campoHHRental);
+				myValidators.push(campoValorKmRental);
+				myValidators.push(campoKmRental);
+				//myValidators.push(campoCustoNordeste);
+				myValidators.push(campoValidadeContrato);
+				//myValidators.push(campoJurosContrato);
+				//myValidators.push(campoHHTA);
+				//myValidators.push(campoHorasTA);
+				myValidators.push(campoDescontoPdp);
+				//myValidators.push(campoHhTACusto);
+				myValidators.push(campoHhPmpCusto);
+				myValidators.push(campoValKmPmpCusto);
+				myValidators.push(campoDescontoPre);
+				myValidators.push(campoSos);
+				myValidators.push(campoMonitoramento);
+				myValidators.push(campoValorTa);
+				myValidators.push(campoComissaoConsultor);
+				myValidators.push(campoComissaoIndicacao);
+				myValidators.push(campoContratoPlus);
+				myValidators.push(campoDescPecas);
+				myValidators.push(campoValorSpot);
+				myValidators.push(campoKmPmpSpot);
+				
+				serviceController.findAllConfigPrecos();
+				
+			}
+			
+			private function remover(event:Event):void{
+				serviceController.remover(gridConfPrecos.selectedItem);
+			}
+			
+			private function onResultFindAllConfigPrecos(event:ResultEvent):void{
+				gridConfPrecos.dataProvider = ArrayCollection(event.result);
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				confPrecos = ConfiguracaoPrecosBean(event.result);
+				if(confPrecos != null){
+					Alert.show("Configuração de Preços realizada com sucesso!", "Alerta");
+					serviceController.findAllConfigPrecos();
+					return;
+				}
+				Alert.show("Não foi possível realizar Configuração de Preços!", "Alerta");
+			}
+			private function onResultRemover(event:ResultEvent):void{
+				novaConfiguracao();
+				if(Boolean(event.result) == true){
+					Alert.show("Configuração de Preços removida com sucesso!", "Alerta");
+					serviceController.findAllConfigPrecos();
+					return;
+				}
+				Alert.show("Não foi possível remover Configuração de Preços, verifique se a mesma está associada à alguma configuração de manutenção de PMP!", "Alerta");
+			}
+			
+			private function saveOrUpdate():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+			
+				if (isValidForm) {
+					confPrecos.hhPmp = hhPmp.text;
+					confPrecos.valorHhPmpCusto = hhPmpCusto.text;
+					confPrecos.valorKmPmp = valKmPmp.text;
+					confPrecos.valorKmPmpCusto = valKmPmpCusto.text;
+					confPrecos.kmPmp = Number(kmPmp.text);
+					confPrecos.hhRental = hhRental.text;
+					confPrecos.valorKmRental = valKmRental.text;
+					confPrecos.kmRental = Number(kmRental.text);
+					//confPrecos.custoNordeste = custoNordeste.text;
+					confPrecos.validadeContrato = Number(validadeContrato.text);
+					//confPrecos.jurosVendaContrato = jurosContrato.text;
+					//confPrecos.hhTa = hhTA.text;
+					//confPrecos.valorHhTaCusto = hhTACusto.text;
+					//confPrecos.horasTa = horasTA.text;
+					confPrecos.descPdp = descontoPdp.text;
+					confPrecos.descricao = descricao.text;
+					confPrecos.descontoPrePago = descontoPrePago.text;
+					confPrecos.comissaoIndicacao = comissaoIndicacao.text;
+					confPrecos.comissaoConsultor = comissaoConsultor.text;
+					confPrecos.sos = sos.text;
+					confPrecos.monitoramento = monitoramento.text;
+					confPrecos.valorTa = valorTA.text;
+					confPrecos.descontoPecas = descontoPecas.text;
+					confPrecos.valorContratoPlus = valorContratoPlus.text;
+					confPrecos.valorSpot = valorPorcentoSpot.text;
+					confPrecos.kmPmpSpot = Number(kmPmpSpot.text);
+					confPrecos.descPdpSpot = descontoPdpSpot.text;
+					confPrecos.valorHorasDesSpot = valorHoraDeslocamentoSpot.text;
+					serviceController.saveOrUpdate(confPrecos);	
+					
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+			}
+			
+			private function doubleClickGridPrecos():void{
+				if(gridConfPrecos.selectedItem != null){
+					confPrecos = ConfiguracaoPrecosBean(gridConfPrecos.selectedItem);
+					hhPmp.text = confPrecos.hhPmp;
+					valKmPmp.text = confPrecos.valorKmPmp;
+					kmPmp.text = String(confPrecos.kmPmp);
+					hhRental.text = confPrecos.hhRental;
+					valKmRental.text = confPrecos.valorKmRental;
+					kmRental.text = String(confPrecos.kmRental);
+					//custoNordeste.text = confPrecos.custoNordeste;
+					validadeContrato.text = String(confPrecos.validadeContrato);
+					//jurosContrato.text = confPrecos.jurosVendaContrato;
+					//hhTA.text = confPrecos.hhTa;
+					//horasTA.text = confPrecos.horasTa;
+					descontoPdp.text = confPrecos.descPdp;
+					descricao.text = confPrecos.descricao;
+					hhPmpCusto.text = confPrecos.valorHhPmpCusto;
+					valKmPmpCusto.text = confPrecos.valorKmPmpCusto;
+					if(confPrecos.descontoPrePago != "null"){
+					descontoPrePago.text = confPrecos.descontoPrePago;
+					}else{
+						descontoPrePago.text = '0';
+						
+					}
+					comissaoConsultor.text = confPrecos.comissaoConsultor;
+					comissaoIndicacao.text = confPrecos.comissaoIndicacao;
+					sos.text =confPrecos.sos;
+					monitoramento.text = confPrecos.monitoramento;
+					valorTA.text = confPrecos.valorTa;
+					descontoPecas.text = confPrecos.descontoPecas;
+					valorContratoPlus.text = confPrecos.valorContratoPlus;
+					valorPorcentoSpot.text = confPrecos.valorSpot;
+					descontoPdpSpot.text = confPrecos.descPdpSpot;
+					valorHoraDeslocamentoSpot.text = confPrecos.valorHorasDesSpot;
+					//hhTACusto.text = confPrecos.valorHhTaCusto; 
+				}
+			}
+			
+			private function novaConfiguracao():void{
+				confPrecos = new ConfiguracaoPrecosBean();
+				hhPmp.text = '';
+				valKmPmp.text = '';
+				kmPmp.text = '';
+				hhRental.text = '';
+				valKmRental.text = '';
+				kmRental.text = '';
+				//custoNordeste.text = '';
+				validadeContrato.text = '';
+				//jurosContrato.text = '';
+				//hhTA.text = '';
+				//horasTA.text = '';
+				descontoPdp.text = '';
+				descricao.text = '';
+				hhPmpCusto.text = '';
+				valKmPmpCusto.text = '';
+				descontoPrePago.text= '';
+				comissaoConsultor.text='';
+				comissaoIndicacao.text='';
+				sos.text='';
+				monitoramento.text='';
+				valorTA.text='';
+				descontoPecas.text='';
+				valorContratoPlus.text='';
+				//hhTACusto.text = '';
+				kmPmpSpot.text = '';
+				valorPorcentoSpot.text='';
+				descontoPdpSpot.text = '';
+				valorHoraDeslocamentoSpot.text = '';
+			}
+			
+		]]>
+	</mx:Script>
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo é obrigatório!" required="true" source="{descricao}" property="text" />
+	<mx:StringValidator id="campoDescontoPdp" requiredFieldError="Este campo é obrigatório!" required="true" source="{descontoPdp}" property="text" />
+	<mx:StringValidator id="campoHHPmp" requiredFieldError="Este campo é obrigatório!" required="true" source="{hhPmp}" property="text" />
+	<mx:StringValidator id="campoValorKmPmp" requiredFieldError="Este campo é obrigatório!" required="true" source="{valKmPmp}" property="text" />
+	<mx:StringValidator id="campoKmPmp" requiredFieldError="Este campo é obrigatório!" required="true" source="{kmPmp}" property="text" />
+	<mx:StringValidator id="campoHHRental" requiredFieldError="Este campo é obrigatório!" required="true" source="{hhRental}" property="text" />
+	<mx:StringValidator id="campoValorKmRental" requiredFieldError="Este campo é obrigatório!" required="true" source="{valKmRental}" property="text" />
+	<mx:StringValidator id="campoKmRental" requiredFieldError="Este campo é obrigatório!" required="true" source="{kmRental}" property="text" />
+	<!--mx:StringValidator id="campoCustoNordeste" requiredFieldError="Este campo é obrigatório!" required="true" source="{custoNordeste}" property="text" /-->
+	<mx:StringValidator id="campoValidadeContrato" requiredFieldError="Este campo é obrigatório!" required="true" source="{validadeContrato}" property="text" />
+	<!--<mx:StringValidator id="campoJurosContrato" requiredFieldError="Este campo é obrigatório!" required="true" source="{jurosContrato}" property="text" />-->
+	<!--mx:StringValidator id="campoHHTA" requiredFieldError="Este campo é obrigatório!" required="true" source="{hhTA}" property="text" />
+	<mx:StringValidator id="campoHorasTA" requiredFieldError="Este campo é obrigatório!" required="true" source="{horasTA}" property="text" />
+	<mx:StringValidator id="campoHhTACusto" requiredFieldError="Este campo é obrigatório!" required="true" source="{hhTACusto}" property="text" /-->
+	<mx:StringValidator id="campoHhPmpCusto" requiredFieldError="Este campo é obrigatório!" required="true" source="{hhPmpCusto}" property="text" />
+	<mx:StringValidator id="campoValKmPmpCusto" requiredFieldError="Este campo é obrigatório!" required="true" source="{valKmPmpCusto}" property="text" />
+	<mx:StringValidator id="campoDescontoPre" requiredFieldError="Este campo é obrigatório!" required="true" source="{descontoPrePago}" property="text" />
+	<mx:StringValidator id="campoComissaoConsultor" requiredFieldError="Este campo é obrigatório!" required="true" source="{comissaoConsultor}" property="text" />
+	<mx:StringValidator id="campoComissaoIndicacao" requiredFieldError="Este campo é obrigatório!" required="true" source="{comissaoIndicacao}" property="text" />
+	<mx:StringValidator id="campoSos" requiredFieldError="Este campo é obrigatório!" required="true" source="{sos}" property="text" />
+	<mx:StringValidator id="campoValorTa" requiredFieldError="Este campo é obrigatório!" required="true" source="{valorTA}" property="text" />
+	<mx:StringValidator id="campoMonitoramento" requiredFieldError="Este campo é obrigatório!" required="true" source="{monitoramento}" property="text" />
+	<mx:StringValidator id="campoDescPecas" requiredFieldError="Este campo é obrigatório!" required="true" source="{descontoPecas}" property="text" />
+	<mx:StringValidator id="campoContratoPlus" requiredFieldError="Este campo é obrigatório!" required="true" source="{descontoPecas}" property="text" />
+	<mx:StringValidator id="campoValorSpot" requiredFieldError="Este campo é obrigatório!" required="true" source="{valorPorcentoSpot}" property="text" />
+	<mx:StringValidator id="campoKmPmpSpot" requiredFieldError="Este campo é obrigatório!" required="true" source="{kmPmpSpot}" property="text" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigPrecos" result="onResultFindAllConfigPrecos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="remover" result="onResultRemover(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Configuração de Preços de PMP" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="37" width="100%" horizontalAlign="center">
+		<mx:Form height="100%">
+			<mx:FormItem label="Descrição" required="true" width="265">
+				<mx:TextInput width="131" id="descricao"  maxChars="255"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH PMP" required="true" width="242">
+				<control:DecimalInput editable="true"  id="hhPmp" width="93" text="{confPrecos.hhPmp}" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH PMP Custo" required="true" width="242">
+				<control:DecimalInput editable="true"  id="hhPmpCusto" width="92" text="{confPrecos.hhPmp}" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor KM PMP" required="true" width="241">
+				<control:DecimalInput editable="true"  id="valKmPmp" text="{confPrecos.valorKmPmp}" width="92" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor KM PMP Custo" required="true" width="241">
+				<control:DecimalInput editable="true"  id="valKmPmpCusto" text="{confPrecos.valorKmPmp}" width="93" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="KM PMP" required="true" width="240">
+				<mx:TextInput width="67" id="kmPmp" maxChars="10" text="{(isNaN(confPrecos.kmPmp))?0:confPrecos.kmPmp}" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH Rental" required="true" width="240">
+				<control:DecimalInput editable="true"  id="hhRental" width="95" text="{confPrecos.hhRental}" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor KM Rental" required="true" width="240">
+				<control:DecimalInput editable="true"  id="valKmRental" text="{confPrecos.valorKmRental}" width="96" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="KM Rental" required="true" width="242">
+				<mx:TextInput width="71" id="kmRental" text="{(isNaN(confPrecos.kmRental))?0:confPrecos.kmRental}" maxChars="10" restrict="0-9"/>
+			</mx:FormItem>
+		</mx:Form>	
+		<mx:Form height="100%">
+			<!--mx:FormItem label="Horas TA" required="true" width="266">
+				<mx:TextInput x="48" y="1" id="horasTA" maxChars="10" width="53" restrict="0-9."/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH TA" required="true" width="266">
+				<control:DecimalInput editable="true"  id="hhTA" width="53" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH TA Custo" required="true" width="266">
+				<control:DecimalInput editable="true"  id="hhTACusto" width="53" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem-->
+			<mx:FormItem label="Desc. PDP %" required="true" width="266">
+				<control:DecimalInput editable="true"  id="descontoPdp" width="48" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Custo Nordeste %" required="true" width="210">
+				<mx:TextInput width="81" id="custoNordeste" text="{confPrecos.custoNordeste}" maxChars="10"  restrict="0-9."/>
+			</mx:FormItem-->
+			<mx:FormItem label="Validade Contrato" required="true" width="243">
+				<mx:TextInput width="81" id="validadeContrato" text="{(isNaN(confPrecos.validadeContrato))?0:confPrecos.validadeContrato}" maxChars="10" restrict="0-9"/>
+			</mx:FormItem>
+<!--			<mx:FormItem label="Juros Contrato %" required="true" width="243">
+				<mx:TextInput width="53" id="jurosContrato" text="{confPrecos.jurosVendaContrato}" maxChars="10" restrict="0-9."/>
+			</mx:FormItem>-->
+			<mx:FormItem label="Desconto Pre Pago %" required="true" width="243">
+				<control:DecimalInput editable="true"  id="descontoPrePago" width="53" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Comissão Consultor" required="true" width="243">
+				<control:DecimalInput editable="true"  id="comissaoConsultor" width="53" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Comissão Indicação" required="true" width="243">
+				<control:DecimalInput editable="true"  id="comissaoIndicacao" width="53" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="SOS" required="true" width="243">
+				<control:DecimalInput editable="true"  id="sos" width="82" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Monitoramento" required="true" width="243">
+				<control:DecimalInput editable="true"  id="monitoramento" width="82" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor TA" required="true" width="243">
+				<control:DecimalInput editable="true"  id="valorTA" width="82" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Desc. Peças %" required="true" width="266">
+				<control:DecimalInput editable="true"  id="descontoPecas" width="48" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			
+		</mx:Form>
+		<mx:Form height="100%">
+			<mx:FormItem label="Valor Contrato Plus" required="true" width="266">
+				<control:DecimalInput editable="true"  id="valorContratoPlus" width="98" text=""   precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="% Spot" required="true" width="266">
+				<control:DecimalInput editable="true"  id="valorPorcentoSpot" width="98" text=""   precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor KM Spot" required="true" width="241">
+				<mx:TextInput width="67" id="kmPmpSpot" maxChars="10" text="{(isNaN(confPrecos.kmPmpSpot))?0:confPrecos.kmPmpSpot}" restrict="0-9"/>
+			</mx:FormItem>
+			<mx:FormItem label="Desc. PDP Spot %" required="true" width="266">
+				<control:DecimalInput editable="true"  id="descontoPdpSpot" width="48" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor. Hr. desloc. Spot " required="true" width="266">
+				<control:DecimalInput editable="true"  id="valorHoraDeslocamentoSpot" width="98" text="" maxChars="10"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<!--mx:FormItem label="Horas TA" required="true" width="266">
+				<mx:TextInput x="48" y="1" id="horasTA" maxChars="10" width="53" restrict="0-9."/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH TA" required="true" width="266">
+				<control:DecimalInput editable="true"  id="hhTA" width="53" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem>
+			<mx:FormItem label="Valor HH TA Custo" required="true" width="266">
+				<control:DecimalInput editable="true"  id="hhTACusto" width="53" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true"/>
+			</mx:FormItem-->
+			<!--mx:FormItem label="Custo Nordeste %" required="true" width="210">
+				<mx:TextInput width="81" id="custoNordeste" text="{confPrecos.custoNordeste}" maxChars="10"  restrict="0-9."/>
+			</mx:FormItem-->
+			<!--			<mx:FormItem label="Juros Contrato %" required="true" width="243">
+				<mx:TextInput width="53" id="jurosContrato" text="{confPrecos.jurosVendaContrato}" maxChars="10" restrict="0-9."/>
+			</mx:FormItem>-->
+		</mx:Form>
+	</mx:HBox>
+	<mx:HBox x="0" y="337" width="100%" horizontalAlign="center">
+		<mx:Button label="Salvar" click="saveOrUpdate()"/>
+		<mx:Button label="Novo" click="novaConfiguracao()"/>
+	</mx:HBox>
+	<mx:HBox x="0" y="372" width="100%" height="100%" paddingBottom="3" paddingLeft="3" paddingRight="3" paddingTop="3">
+		<mx:DataGrid width="100%" height="100%" id="gridConfPrecos" doubleClick="doubleClickGridPrecos()" doubleClickEnabled="true">
+			
+			<mx:columns>
+				<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Excluir">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCONFPRECO', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	</mx:HBox>
+	
+</mx:Canvas>

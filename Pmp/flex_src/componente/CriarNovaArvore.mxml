@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Nova Árvore" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="348" height="220">
+	<mx:Script>
+		<![CDATA[
+			import bean.TreeBean;
+			
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			public var isSave:Boolean = false;
+			[Bindable]
+			public var treeBean:TreeBean = new TreeBean();
+			private var idFamilia:Number;
+			public function init(urlLogin:String, treeBean:TreeBean, idFamilia:Number):void{
+				this.idFamilia = idFamilia;
+				if(treeBean != null && treeBean.idArv > 0){
+					this.treeBean = treeBean;
+					nodoText.text = this.treeBean.descricao;
+				}
+				this.urlLogin = urlLogin;
+			}
+			private function createTree():void{
+				if(nodoText.text == ''){
+					Alert.show("O campo nodo é obrigatório", "Alerta");
+					return;
+				}
+				var tree:TreeBean = new TreeBean();
+				tree.descricao = nodoText.text.toUpperCase();
+				serviceController.save(tree, null, null, idFamilia);
+			}
+			private function onResultSaveNodo(event:ResultEvent):void{
+				if(event.result == null){
+					Alert.show("Não foi possível salvar árvore!", "Alerta");
+					return;
+				}
+				treeBean = event.result as TreeBean;
+				isSave = true;
+				this.close();
+			}
+			private function onResultRemoverTree(event:ResultEvent):void{
+				if(event.result == false){
+					Alert.show("Não foi possível remover árvore!", "Alerta");
+					return;
+				}
+				isSave = true;
+				this.close();
+			}
+			
+
+			protected function removerTree_clickHandler(event:MouseEvent):void
+			{
+				serviceController.removerTree(treeBean.idArv);
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="save" result="onResultSaveNodo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerTree" result="onResultRemoverTree(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:TextInput x="93" y="55" id="nodoText" text="{treeBean.descricao}" focusEnabled="true" />
+	<mx:Label x="39" y="56" text="Nodo"/>
+	<mx:Button x="102" y="102" label="Criar" id="criar" click="createTree()" includeInLayout="{(isNaN(treeBean.idArv)?true:false)}" visible="{(isNaN(treeBean.idArv)?true:false)}"/>
+	<mx:Button x="175" y="102" label="Remover" id="removerTree" includeInLayout="{(treeBean.idArv > 0?true:false)}" visible="{(treeBean.idArv > 0?true:false)}" click="removerTree_clickHandler(event)"/>
+	
+</util:ModuleTitleWindow>

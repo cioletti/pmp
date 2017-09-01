@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.ClienteInterBean;
+			
+			import flash.utils.flash_proxy;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var clienteInter:ClienteInterBean = new ClienteInterBean();
+			
+			public function init(urlLogin:String):void{
+				gridCI.addEventListener("REMOVERCLIENTEINTER", removerCI);
+				
+				myValidators = new Array();
+				myValidators.push(campoNumero);
+				myValidators.push(campoSearchKey);
+				myValidators.push(campoDescricao);
+				myValidators.push(campoCodFilial);
+				myValidators.push(campoDescFilial);				
+				this.urlLogin = urlLogin;
+				serviceController.findAllClienteInter();
+			}
+			
+			private function removerCI(ev: Event): void{
+				serviceController.remover(gridCI.selectedItem);
+			}
+			
+			private function onResultFindAllClienteInter(event:ResultEvent):void{
+				gridCI.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function onResultRemover(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					var grid:ArrayCollection = ArrayCollection(gridCI.dataProvider);
+					grid.removeItemAt(gridCI.selectedIndex);
+					novoCI();
+					return;
+				}
+				Alert.show("Não foi possível remover Cliente Inter!", "Alerta");
+			}
+			
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				clienteInter = ClienteInterBean(event.result);
+				if(clienteInter != null){
+					Alert.show("Cliente Inter salvo com sucesso!", "Alerta");
+					serviceController.findAllClienteInter();
+					return;
+				}
+				Alert.show("Erro ao salvar Cliente Inter!", "Alerta");
+			}
+			
+			private function findClienteInterBySearchKey():void{			
+				serviceController.findClienteInterBySearchKey(searchKeyPesquisar.text);				
+			}
+			
+			private function onResultFindClienteInterBySearchKey(event:ResultEvent):void{
+				gridCI.dataProvider = ArrayCollection(event.result);
+			}			
+			
+			private function saveOrUpdate():void{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					clienteInter.customerNum = customerNum.text;
+					clienteInter.searchKey = searchKey.text;
+					clienteInter.descricao = descricao.text;
+					clienteInter.cod = cod.text;
+					clienteInter.filialDesc = filialDesc.text;
+					serviceController.saveOrUpdate(clienteInter);
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+			}
+			
+			public function novoCI():void{
+				customerNum.text = "";
+				searchKey.text = "";
+				descricao.text = "";
+				cod.text = "";
+			    filialDesc.text = "";
+				clienteInter = new ClienteInterBean();
+			}
+			
+			private function doubleClickGrid():void{
+				if(gridCI.selectedItem != null){
+				clienteInter = ClienteInterBean(gridCI.selectedItem);
+				customerNum.text = clienteInter.customerNum;
+				searchKey.text = clienteInter.searchKey;
+				descricao.text = clienteInter.descricao;
+				cod.text = clienteInter.cod;
+				filialDesc.text = clienteInter.filialDesc;
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:StringValidator id="campoNumero" requiredFieldError="Este campo é obrigatório!" required="true" source="{customerNum}" property="text" />
+	<mx:StringValidator id="campoSearchKey" requiredFieldError="Este campo é obrigatório!" required="true" source="{searchKey}" property="text" />
+	<mx:StringValidator id="campoDescricao" requiredFieldError="Este campo é obrigatório!" required="true" source="{descricao}" property="text" />
+	<mx:StringValidator id="campoCodFilial" requiredFieldError="Este campo é obrigatório!" required="true" source="{cod}" property="text" />
+	<mx:StringValidator id="campoDescFilial" requiredFieldError="Este campo é obrigatório!" required="true" source="{filialDesc}" property="text" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllClienteInter" result="onResultFindAllClienteInter(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="remover" result="onResultRemover(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findClienteInterBySearchKey" result="onResultFindClienteInterBySearchKey(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:VBox x="0" y="0" width="100%" height="100%" verticalAlign="middle" horizontalAlign="center">
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Cliente Inter" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Form>
+		<mx:FormItem label="Número" required="true">
+			<mx:TextInput id="customerNum"/>
+		</mx:FormItem>
+		<mx:FormItem label="Search Key" required="true">
+			<mx:TextInput id="searchKey"/>
+		</mx:FormItem>
+		<mx:FormItem label="Descrição" required="true">
+			<mx:TextInput id="descricao"/>
+		</mx:FormItem>
+		<mx:FormItem label="Código da Filial" required="true">
+			<mx:TextInput id="cod"/>
+		</mx:FormItem>
+		<mx:FormItem label="Descrição da Filial" required="true">
+			<mx:TextInput id="filialDesc"/>
+		</mx:FormItem>
+				</mx:Form>
+		</mx:HBox>
+		
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Salvar" click="saveOrUpdate()"/>
+			<mx:Button label="novo" click="novoCI()"/>
+		</mx:HBox>
+	<mx:HBox  width="100%" horizontalAlign="left">
+		<mx:FormItem label="Search Key" required="true" width="259">
+			<mx:TextInput id="searchKeyPesquisar"/>
+		</mx:FormItem>
+		<mx:Button label="Pesquisar" click="findClienteInterBySearchKey()"/>
+	</mx:HBox>
+		<mx:DataGrid width="100%" height="100%" id="gridCI" doubleClick="doubleClickGrid()" doubleClickEnabled="true">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Número" dataField="customerNum"/>
+				<mx:DataGridColumn headerText="Search Key" dataField="searchKey"/>
+				<mx:DataGridColumn headerText="Descrição" dataField="descricao"/>
+				<mx:DataGridColumn headerText="Código da Filial" dataField="cod"/>
+				<mx:DataGridColumn headerText="Descrição da Filial" dataField="filialDesc"/>
+				<mx:DataGridColumn headerText="Excluir">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCLIENTEINTER', true))}"/>
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:DataGridColumn>
+			</mx:columns>
+		</mx:DataGrid>
+	
+	</mx:VBox>
+	
+</mx:Canvas>

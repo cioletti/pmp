@@ -1,0 +1,528 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Dados Agendamento"  horizontalAlign="center" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="1000" height="682" xmlns:controls="fs.controls.*">
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			import bean.PecasDbsBean;
+			import bean.StatusAgendamentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			public var isLoadData:Boolean = false;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			[Bindable]
+			private var dateHearderList:ArrayCollection;
+			[Bindable]
+			private var dataGridPecas:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var idFuncionario:String;
+			[Bindable]
+			private var nomeFuncionario:String;
+			[Bindable]
+			private var dataInicio:String;
+			[Bindable]
+			public var usuarioList:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var agendamento:AgendamentoBean;
+			[Bindable]
+			private var popUpObsAgendamento:PopUpObsAgendamento = null;
+			private var usuarioBean:UsuarioBean;
+			private var usuarioAjudanteBean:UsuarioBean = new UsuarioBean();
+			private var popUpDataFaturamento:PopupDataFaturamento;
+			public function init(urlLogin:String, dateHearderList:ArrayCollection, idFuncionario:String, data:String,  usuarioBean:UsuarioBean, nomeFuncionario:String, isEdit:Boolean):void{
+				gridPeca.dataProvider = null;
+				numeroOsCbx.dataProvider = null;
+				this.dateHearderList = dateHearderList;
+				this.idFuncionario = idFuncionario;
+				this.nomeFuncionario = nomeFuncionario;
+				this.dataInicio = data;
+				this.usuarioBean = usuarioBean;
+				dataFinal.text = data;
+				myValidators = new Array();
+				myValidators.push(campoNumOsCbx);
+				myValidators.push(campoContato);
+				myValidators.push(campoTelefone);
+				myValidators.push(campoLocal);
+				myValidators.push(campoDataInicial);
+				
+				this.telContato.inputFormat = FormattedInput.INPUT_FORMAT_FONE_DDD;
+				
+				agendamento = new AgendamentoBean();
+				gridPeca.addEventListener("REMOVERPECA", remover);
+				this.urlLogin = urlLogin;
+				
+				serviceController.findAllOsDisponiveis(this.idFuncionario, isEdit);
+				serviceController.findAllStatusAgendamento();
+				
+				
+			}
+			public function setAgendamento(ag:AgendamentoBean):void{
+				this.agendamento = ag;
+				serviceController.findPecasAgendamento(ag.id);
+				serviceController.findHorasRevisao(ag.idContHorasStandard);
+				funcionarioAjudante.text = ag.nomeAjudante;
+				this.usuarioAjudanteBean = new UsuarioBean;
+				this.usuarioAjudanteBean.matricula = ag.idAjudante;
+				this.usuarioAjudanteBean.nome = ag.nomeAjudante;
+				horasTrabalhadas.text = ag.horasTrabalhadas;
+				ObsTextArea2.text = ag.obsTecnico;
+				numeroOsCbx.enabled = false;
+				if(agendamento.siglaStatus != "EA"){
+					statusAgendamentoCbx.enabled = false;
+				}
+				//serviceController.findIdEquipamento(agendamento.numSerie);
+//				if(agendamento.dataFaturamento != null){
+//					dataFaturamentoBtn.visible = false;
+//				}
+//				horasRevisao.text = agendamento.horasRevisao.toString();
+//				contato.text = agendamento.contato;
+//				telContato.text = agendamento.telefone;
+//				local.text = agendamento.local;
+				
+			}
+			
+			private function selectedNumOs():void{
+				var osList:ArrayCollection = ArrayCollection(numeroOsCbx.dataProvider);
+				for(var i:int=0; i < osList.length; i++){
+					var ag:AgendamentoBean = AgendamentoBean(osList.getItemAt(i));
+					if(agendamento.numOs == ag.numOs){
+						numeroOsCbx.selectedIndex = i;
+						serviceController.findIdEquipamento(agendamento.numSerie);
+						break;
+					}
+				}
+			}
+			private function selectedStatusAgendamento():void{
+				var stList:ArrayCollection = ArrayCollection(statusAgendamentoCbx.dataProvider);
+				for(var i:int=0; i < stList.length; i++){
+					var st:StatusAgendamentoBean = StatusAgendamentoBean(stList.getItemAt(i));
+					if(agendamento.idStatusAgendamento == st.id){
+						statusAgendamentoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function remover(event:Event):void{
+				ArrayCollection(gridPeca.dataProvider).removeItemAt(gridPeca.selectedIndex);
+			}
+			public function addRowBtnClickHandler():void
+			{
+				//add am empty item
+				if(gridPeca.dataProvider != null){
+					ArrayCollection(gridPeca.dataProvider).addItem({codigo:'', qtd:'', nomePeca:'', numPeca:''});
+				}else{
+					gridPeca.dataProvider = new ArrayCollection();
+					ArrayCollection(gridPeca.dataProvider).addItem({codigo:'', qtd:'', nomePeca:'', numPeca:''});
+				}
+			}
+			private function onResultFindAllTecnico(event:ResultEvent):void{
+				numeroOsCbx.dataProvider = event.result;
+				if(this.agendamento.numOs != null){
+					dataInicial.text = agendamento.dataAgendamento;
+					
+					gridPeca.dataProvider = agendamento.pecasList;
+					this.selectedNumOs();
+					
+				}
+			}
+			private function onResultFindAllStatusAgendamento(event:ResultEvent):void{
+				statusAgendamentoCbx.dataProvider = event.result;
+				this.selectedStatusAgendamento();
+			}
+			private function onResultFindPecas(event:ResultEvent):void{
+				var list:ArrayCollection = new ArrayCollection();
+				gridPeca.dataProvider = null;
+				dataGridPecas.removeAll();
+				for(var i:int = 0; i < ArrayCollection(event.result).length; i++){
+					var obj:Object = ArrayCollection(event.result).getItemAt(i);
+					var pecas:PecasDbsBean = new PecasDbsBean();
+					pecas.codigo = obj.codigo;
+					pecas.nomePeca = obj.nomePeca;
+					pecas.numPeca = obj.numPeca;
+					pecas.qtd = obj.qtd;
+					list.addItem(pecas);
+				}
+				dataGridPecas = ArrayCollection(list);
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				usuarioList.removeAll();
+				this.isLoadData = true;
+				if(event.result == null){
+					usuarioList = null;
+					this.close();
+					return;
+				}
+				usuarioList = ArrayCollection(event.result);
+				this.close();
+			}
+			private function onResultRemover(event:ResultEvent):void{
+				
+				if(event.result == null){
+					Alert.show("O agendamento não pode ser excluído, o mecânico já o aceitou ou baixou a OS no dispositivo Móvel.","Alerta!");
+					return;
+				}
+				Alert.show("Operação realizada com sucesso.","Alerta!");
+				usuarioList.removeAll();
+				usuarioList = ArrayCollection(event.result);
+				this.isLoadData = true;
+				this.close();
+			}
+			private function changeOs():void{
+				agendamento = AgendamentoBean(numeroOsCbx.selectedItem);
+				serviceController.findIdEquipamento(agendamento.numSerie);
+				serviceController.findPecas(agendamento.numOs);
+				serviceController.verificarChamadoCampo(agendamento.numSerie);
+				serviceController.findHorasRevisao(agendamento.idContHorasStandard);
+			}
+			
+			private function onResultVerificarChamadoCampo(event:ResultEvent):void{
+				var msgChamado:String = String(event.result);
+				if(msgChamado.length > 0){
+					Alert.show(msgChamado, "Alerta");
+				}
+				//this.validarDadosCliente();
+			}
+			private function confirmeSave():void{
+				if(this.nomeFuncionario == 'PARTNER' || this.nomeFuncionario == 'CUSTOMER'){
+					Alert.yesLabel = "Sim";
+					Alert.noLabel = "Não";				
+					Alert.show("O Local do Agendamento está correto?", "Alerta", 3, this, alertClickHandlerLocalAgendamento);
+				} else{
+					if(usuarioBean.isAdm){
+						if(StatusAgendamentoBean(statusAgendamentoCbx.selectedItem).sigla == 'FIN' && (gridPeca.dataProvider == null || ArrayCollection(gridPeca.dataProvider).length == 0)){
+							Alert.yesLabel = "Sim";
+							Alert.noLabel = "Não";				
+							Alert.show("Deseja finalizar agendamento sem peças?", "Alerta", 3, this, alertClickHandlerFinalizarAgendamento);
+						}else{
+							saveOrUpdate();
+						}
+					}else{
+						saveOrUpdate();
+					}
+				}
+			}
+			
+			private function alertClickHandlerLocalAgendamento(event:CloseEvent):void { 
+				if (event.detail==Alert.YES) {
+					if(usuarioBean.isAdm){
+						if(StatusAgendamentoBean(statusAgendamentoCbx.selectedItem).sigla == 'FIN' && (gridPeca.dataProvider == null || ArrayCollection(gridPeca.dataProvider).length == 0)){
+							Alert.yesLabel = "Sim";
+							Alert.noLabel = "Não";				
+							Alert.show("Deseja finalizar agendamento sem peças?", "Alerta", 3, this, alertClickHandlerFinalizarAgendamento);
+						}else{
+							saveOrUpdate();
+						}
+					}else{
+						saveOrUpdate();
+					}
+				}
+			}
+			private function alertClickHandlerFinalizarAgendamento(event:CloseEvent):void { 
+				if (event.detail==Alert.YES) {
+					saveOrUpdate()
+				}
+			}
+			
+			private function saveOrUpdate():void{
+			
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if (isValidForm) {
+					var begin:Date = DateField.stringToDate(dataInicial.text, 'DD/MM/YYYY');
+					var end:Date = DateField.stringToDate(dataFinal.text, 'DD/MM/YYYY');
+					if(begin.getTime() > end.getTime()){
+						Alert.show("A data final não pode ser maior que a data inicial.", "Alerta");
+						return;
+					}
+					if(!usuarioBean.isAdm){
+						if(gridPeca.dataProvider == null || ArrayCollection(gridPeca.dataProvider).length == 0){
+							Alert.show("Não é permitido criar agendamento sem peças.", "Alerta");
+							return;
+						}
+					}
+					agendamento.contato = contato.text;
+					agendamento.telefone = telContato.text;
+					agendamento.local = local.text;
+					agendamento.dataAgendamento = this.dataInicio;
+					agendamento.dataAgendamentoFinal = dataFinal.text;
+					agendamento.emailContato = emailContato.text;
+					agendamento.idStatusAgendamento = StatusAgendamentoBean(statusAgendamentoCbx.selectedItem).id;
+					var result:ArrayCollection = new ArrayCollection();
+					var listPecas:ArrayCollection = gridPeca.dataProvider as ArrayCollection;
+					for(var i:int = 0; i < listPecas.length; i++){
+						var pecas:PecasDbsBean = new PecasDbsBean();
+						pecas.codigo = listPecas.getItemAt(i).codigo;
+						pecas.qtd = listPecas.getItemAt(i).qtd;
+						pecas.nomePeca = listPecas.getItemAt(i).nomePeca;
+						pecas.numPeca = listPecas.getItemAt(i).numPeca;
+						result.addItem(pecas);
+					}
+					agendamento.pecasList = result;
+					agendamento.idFuncionario = this.idFuncionario;
+					agendamento.idAjudante = this.usuarioAjudanteBean.matricula;
+					agendamento.horasTrabalhadas = horasTrabalhadas.text;
+					agendamento.obsTecnico= ObsTextArea2.text;
+					
+					serviceController.verificarFilialTecnico(agendamento);
+					
+					
+				} else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Preencha Por favor...", Alert.OK);
+				}
+			}
+			
+			private function onResultVerificarFilialTecnico(event:ResultEvent):void{
+				if(event.result != null){
+					Alert.show(String(event.result), "Alerta");
+					return;
+				}
+				serviceController.saveOrUpdate(agendamento, dateHearderList);
+			}
+			
+			private function novoAgendamento():void{
+				this.agendamento = new AgendamentoBean();
+				numeroOsCbx.selectedIndex = -1;
+				statusAgendamentoCbx.selectedIndex = 0;
+				ObsTextArea2.text ="";
+				statusAgendamentoCbx.enabled = true;
+				numeroOsCbx.enabled = true;
+				gridPeca.dataProvider = null;
+				serviceController.findAllOsDisponiveis(this.idFuncionario, false);
+			}
+			private function removerAgendamento():void{
+				if(agendamento.siglaStatus != "EA"){
+					Alert.show("Apenas o agendamento: Em Atendimento, pode ser excluído.","Alerta!");
+					return;
+				}
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente excluir o agendamento?", "Alerta", 3, this, alertClickHandler);				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					serviceController.removerAgendamento(agendamento.id, dateHearderList);
+				}else{
+					return;
+				}
+			}
+
+			protected function statusAgendamentoCbx_changeHandler(event:ListEvent):void
+			{
+				if(StatusAgendamentoBean(statusAgendamentoCbx.selectedItem).sigla == "OBS"){
+					
+					agendamento.dataAgendamento = this.dataInicio;
+					agendamento.idStatusAgendamento = StatusAgendamentoBean(statusAgendamentoCbx.selectedItem).id;
+					agendamento.idFuncionario = this.idFuncionario;
+					
+					popUpObsAgendamento = new PopUpObsAgendamento();
+					popUpObsAgendamento.addEventListener(CloseEvent.CLOSE, removePopUpListaAgendamento);
+					PopUpManager.addPopUp(popUpObsAgendamento,this,true);
+					PopUpManager.centerPopUp(popUpObsAgendamento)
+//					popUpObsAgendamento.init(urlLogin, agendamento);
+					
+					this.close();
+				}
+			}
+			
+			private function removePopUpListaAgendamento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+
+
+			protected function dataFaturamentoBtn_clickHandler(event:MouseEvent):void
+			{
+				popUpDataFaturamento = new PopupDataFaturamento();
+				popUpDataFaturamento.addEventListener(CloseEvent.CLOSE, removePopUpDataFaturamento);
+				PopUpManager.addPopUp(popUpDataFaturamento,this,true);
+				PopUpManager.centerPopUp(popUpDataFaturamento);
+				popUpDataFaturamento.init(urlLogin, agendamento, this.usuarioBean);
+			}
+			
+			private function removePopUpDataFaturamento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				this.agendamento = popUpDataFaturamento.agendamento;
+				if(agendamento.dataFaturamento != null){
+					
+					serviceController.findAllTecnico(dateHearderList);
+									
+				}
+			}
+			
+			private function onResultFindAllTecnicos (event:ResultEvent):void{
+				usuarioList = ArrayCollection(event.result);
+				this.close();
+			}
+			private function onResultFindHorasRevisao (event:ResultEvent):void{
+				horasTrabalhadas.text = String(event.result);
+			}
+			
+			private var popUpPesquisarFuncionario:PopUpFuncionario;
+			protected function pesquisarFuncionarioBtn_clickHandler(event:MouseEvent):void
+			{
+				popUpPesquisarFuncionario = new PopUpFuncionario();
+				popUpPesquisarFuncionario.addEventListener(CloseEvent.CLOSE, removePesquisarFuncionarioPopUp);
+				PopUpManager.addPopUp(popUpPesquisarFuncionario, this, true);
+				PopUpManager.centerPopUp(popUpPesquisarFuncionario);
+				popUpPesquisarFuncionario.init(urlLogin);
+				
+			}
+			
+			private function removePesquisarFuncionarioPopUp(obj:CloseEvent):void{
+				if(popUpPesquisarFuncionario.usuarioBean != null){
+					this.usuarioAjudanteBean = popUpPesquisarFuncionario.usuarioBean;
+					funcionarioAjudante.text =  popUpPesquisarFuncionario.usuarioBean.nome;
+				}else{
+					this.usuarioAjudanteBean = new UsuarioBean();
+					funcionarioAjudante.text = "";					
+				}
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);	
+			}
+			private function onResultFindIdEquipamento (event:ResultEvent):void{
+				if(event.result != null){
+					idEquipamentoTxt.text = String(event.result);
+				}else{
+					idEquipamentoTxt.text = "";
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:StringValidator id="campoContato" requiredFieldError="Este campo  obrigatório!" required="true" source="{contato}" property="text" />
+	<mx:StringValidator id="campoTelefone" requiredFieldError="Este campo  obrigatório!" required="true" source="{telContato}" property="text" />
+	<mx:StringValidator id="campoLocal" requiredFieldError="Este campo  obrigatório!" required="true" source="{local}" property="text" />
+	<mx:StringValidator id="campoDataInicial" requiredFieldError="Este campo  obrigatório!" required="true" source="{dataInicial}" property="text" />
+	<mx:NumberValidator id="campoNumOsCbx" source="{numeroOsCbx}" lowerThanMinError="Este campo  obrigatório." property="selectedIndex" minValue="0" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllOsDisponiveis" result="onResultFindAllTecnico(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findPecas" result="onResultFindPecas(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllStatusAgendamento" result="onResultFindAllStatusAgendamento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		
+		<mx:method name="verificarFilialTecnico" result="onResultVerificarFilialTecnico(event);ProgressBarHelper.removeProgressBar()" />
+		
+		<mx:method name="findPecasAgendamento" result="onResultFindPecas(event);ProgressBarHelper.removeProgressBar()" />
+		
+		
+		
+		
+		<mx:method name="removerAgendamento" result="onResultRemover(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTecnico" result="onResultFindAllTecnicos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findHorasRevisao" result="onResultFindHorasRevisao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findIdEquipamento" result="onResultFindIdEquipamento(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificarChamadoCampo" result="onResultVerificarChamadoCampo(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:Form x="12" y="0" height="100%" width="346">
+		<mx:FormItem label="Nº OS">
+			<mx:ComboBox id="numeroOsCbx" labelField="numOs" prompt="Selecione" selectedIndex="-1" change="changeOs()"></mx:ComboBox>
+		</mx:FormItem>
+		<mx:FormItem label="ID Equipamento" width="291">
+			<mx:TextInput width="97" editable="false"  id="idEquipamentoTxt"/>
+		</mx:FormItem>
+		<mx:FormItem label="Horas Revisão" width="291">
+			<mx:TextInput width="97" editable="false" text="{(isNaN(agendamento.horasRevisao))?'':agendamento.horasRevisao}" id="horasRevisao"/>
+		</mx:FormItem>
+		<mx:FormItem label="Horas" width="100%">
+			<mx:TextInput width="188" id="horasTrabalhadas" text="" maxChars="255" editable="false"/>
+		</mx:FormItem>
+		<mx:FormItem label="Contato" width="100%">
+			<mx:TextInput width="189" id="contato" text="{agendamento.contato}" maxChars="100"/>
+		</mx:FormItem>
+		<mx:FormItem label="Tel Contato" width="291">
+			<controls:FormattedInput width="102" id="telContato" text="{agendamento.telefone}"/>
+		</mx:FormItem>
+		<mx:FormItem label="E-mail Contato" width="100%">
+			<mx:TextInput width="90%" id="emailContato" text="{agendamento.emailContato}"/>
+		</mx:FormItem>
+		<mx:FormItem label="Local" width="100%">
+			<mx:TextInput width="188" id="local" text="{agendamento.local}" maxChars="255"/>
+		</mx:FormItem>
+		<mx:FormItem label="Data" width="209">
+			<mx:TextInput id="dataInicial" text="{dataInicio}" editable="false" width="73"/>
+		</mx:FormItem>
+		<mx:FormItem label="Data Final" visible="false">
+			<mx:DateField id="dataFinal" formatString="DD/MM/YYYY"  dayNames="['D','S','T','Q','Q','S','S']"
+						  monthNames="['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+		</mx:FormItem>
+	</mx:Form>
+	<mx:HBox x="10" y="305" width="100%" horizontalAlign="center" verticalAlign="top" paddingLeft="5" height="34">
+		<mx:Grid width="100%" height="25">
+			<mx:GridRow width="100%" height="100%">
+				<!--mx:GridItem width="100%" height="100%" horizontalAlign="left">
+					<-mx:Button label="Adicionar Item" click="addRowBtnClickHandler()"/>
+				</mx:GridItem-->
+				<mx:GridItem width="100%" height="29" paddingLeft="215">
+					<mx:Button label="Salvar" click="confirmeSave()" />
+					<mx:Button label="Novo" click="novoAgendamento()"/>
+					<mx:Button label="Excluir" enabled="{(agendamento.id > 0)?true:false}" click="removerAgendamento()"/>
+					<mx:Button id="dataFaturamentoBtn" label="Incluir data faturamento" visible="{(agendamento.dataFaturamento == null || agendamento.dataFaturamento == '') &amp;&amp; (agendamento.siglaStatus == 'FIN')? true : false}" click="dataFaturamentoBtn_clickHandler(event)"/>
+				</mx:GridItem>
+			</mx:GridRow>
+		</mx:Grid>
+	</mx:HBox>
+	<mx:DataGrid x="10" y="347" width="100%" height="302" editable="false" id="gridPeca" dataProvider="{dataGridPecas}">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Documento" dataField="codigo"/>
+			<mx:DataGridColumn headerText="Quantidade" dataField="qtd"/>
+			<mx:DataGridColumn headerText="Nº Peça" dataField="numPeca"/>
+			<mx:DataGridColumn headerText="Nome Peça" dataField="nomePeca"/>
+			<!--mx:DataGridColumn headerText="Excluir" editable="false">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERPECA', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn-->
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:Form x="385" y="0" height="60" width="262">
+		<mx:FormItem label="Status">
+			<mx:ComboBox id="statusAgendamentoCbx" labelField="descricao"></mx:ComboBox>
+		</mx:FormItem>		
+	</mx:Form>
+	<mx:VBox height="77" x="385" y="68">
+		<mx:Label text="Observação aceite OS do Iphone"/>
+		<mx:TextArea id="rejeicaoTxtArea" text="{agendamento.obs}" editable="false" height="45" width="241"/>
+	</mx:VBox>
+	<mx:Form x="655" y="0" height="297" width="307">
+		<mx:VBox height="100">
+			<mx:Label text="Observação do Técnico"/>
+			<mx:TextArea id="ObsTextArea2" text="{agendamento.obsTecnico}" editable="true" height="65" width="241"/>
+		</mx:VBox>
+		<mx:VBox height="100">
+			<mx:Label text="Observação da OS"/>
+			<mx:TextArea id="ObsTextArea1" text="{agendamento.obsOs}" editable="false" height="65" width="241"/>
+		</mx:VBox>
+		<mx:Label text="Ajudante"/>
+		<mx:HBox width="273" horizontalAlign="center">
+			<mx:TextInput id="funcionarioAjudante" enabled="true" editable="false"/>
+			<mx:Button id="pesquisarFuncionarioBtn" label="Add Ajudante" click="pesquisarFuncionarioBtn_clickHandler(event)"/>
+		</mx:HBox>
+	</mx:Form>
+	<mx:VBox height="100" x="385" y="153">
+		<mx:Label text="Observação do Check-List"/>
+		<mx:TextArea id="ObsTextArea0" text="{agendamento.obsCheckList}" editable="false" height="65" width="241"/>
+	</mx:VBox>
+	
+</util:ModuleTitleWindow>

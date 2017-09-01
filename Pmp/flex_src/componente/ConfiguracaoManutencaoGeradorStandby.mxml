@@ -1,0 +1,473 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" xmlns:control="br.com.thinklab.util.control.*">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.BusinessGroupBean;
+			
+			import mx.events.ListEvent;
+			
+			import bean.ConfigManutencaoBean;
+			import bean.ConfiguracaoPrecosBean;
+			import bean.FamiliaBean;
+			import bean.ModeloBean;
+			import bean.PrefixoBean;
+			import bean.RangerBean;
+			import bean.StandardJobBean;
+			import bean.TipoFrequenciaBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var confManutencaoBean:ConfigManutencaoBean = new ConfigManutencaoBean();
+			public function init(urlLogin:String):void{
+				gridHoras.addEventListener("REMOVERSTANDARDJOB", removerStandarJob);
+				gridPesquisa.addEventListener("REMOVERCONFPMP", removerConfPmp);
+				this.urlLogin = urlLogin;
+				myValidators = new Array();
+				myValidators.push(campoModeloCbx);
+				myValidators.push(campoPrefixoCbx);
+				myValidators.push(campoBgCbx);
+				myValidators.push(campoFamiliaCbx);
+				myValidators.push(campoPrecoPmpCbx);
+				//serviceController.findAllModelos();
+				serviceController.findAllFamiliaGerador("GERADOR");
+				serviceController.findAllFrequencia("Standby");
+				serviceController.findAllConfigPrecos();
+			}
+			
+			private function onResultFindAllConfigPrecos(event:ResultEvent):void{
+				precoPmpCbx.dataProvider = ArrayCollection(event.result);
+			}
+			
+			private function removerStandarJob(ev: Event): void{
+				var grid:ArrayCollection = ArrayCollection(gridHoras.dataProvider);
+				grid.removeItemAt(gridHoras.selectedIndex);
+			}
+			
+			private function removerConfPmp(ev: Event): void{
+				serviceController.removerConfPmp(gridPesquisa.selectedItem);
+			}
+			
+			[Bindable]
+			private var comboFamilia:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllFamiliaGerador(event:ResultEvent):void{
+				if(comboFamilia.length > 0){
+					comboFamilia.removeAll();
+				}
+				comboFamilia.addAll(ArrayCollection(event.result));
+				familiaCbx.dataProvider = comboFamilia;
+			}
+			
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				comboModelo.addAll(ArrayCollection(event.result));
+				modeloCbx.dataProvider = comboModelo;
+				
+				serviceController.findBusinessGroupPM();
+			}
+			
+			private function onResultFindAllFrequencia(event:ResultEvent):void{
+				frequenciaCbx.dataProvider = ArrayCollection(event.result);
+			}
+			
+			[Bindable]
+			private var comboPrefixo:ArrayCollection = new ArrayCollection();	
+			private function onResultFindAllPrefixos(event:ResultEvent):void{
+//				var p:PrefixoBean = new PrefixoBean();
+//				p.descricao = "Selecione";
+//				//p.id = -1;
+				if(comboPrefixo.length > 0){
+					comboPrefixo.removeAll();
+				}
+				//prefixoCbx.initialize();
+				
+				//comboPrefixo.addItem(p);
+				comboPrefixo.addAll(ArrayCollection(event.result));
+				prefixoCbx.dataProvider = comboPrefixo;
+			}
+			
+			[Bindable]
+			private var comboBG:ArrayCollection = new ArrayCollection();	
+			private function onResultFindBusinessGroupPM(event:ResultEvent):void{
+				if(comboBG.length > 0){
+					comboBG.removeAll();
+				}
+				comboBG.addAll(ArrayCollection(event.result));
+				bgCbx.dataProvider = comboBG;
+			}
+
+			private function onResultFindRangerPmp(event:ResultEvent):void{
+				range.dataProvider = event.result;
+			}
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				confManutencaoBean = ConfigManutencaoBean(event.result);
+				if(confManutencaoBean != null){
+					Alert.show("Configuração de PMP salva com sucesso!", "Alerta");
+					gridPesquisa.dataProvider = null;
+					return;
+				}
+				Alert.show("Não foi possível salvar configuração de PMP!", "Alerta");
+			}
+			private function onResultRemoverConfPmp(event:ResultEvent):void{
+				if(Boolean(event.result) == true){
+					Alert.show("Configuração de PMP removida com sucesso!", "Alerta");
+					this.findConfiguracao();
+					this.novaConfiguracao();
+					return;
+				}
+				Alert.show("Não foi possível remover configuração de PMP!", "Alerta");
+			}
+			private function onResultFindConfiguracao(event:ResultEvent):void{
+				gridPesquisa.dataProvider = ArrayCollection(event.result);
+			}
+				
+			private function onChangeModelo():void{
+				range.dataProvider = null;				
+				serviceController.findAllPrefixos(ModeloBean(modeloCbx.selectedItem).descricao);
+			}
+			private function onChangePrefixo():void{
+				serviceController.findRangerPmp(ModeloBean(modeloCbx.selectedItem).descricao, PrefixoBean(prefixoCbx.selectedItem).descricao);
+			}
+			protected function clickHandlerSalvar(event:MouseEvent):void
+			{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				if(range.selectedItem == null){
+					Alert.show("Ranger : Este campo é obrigatório.", "Alerta", Alert.OK);
+					return;
+				}
+				if(gridHoras.dataProvider == null){
+					Alert.show("É preciso possuir configuração de horas.", "Alerta", Alert.OK);
+					return;
+				}
+				if (isValidForm) {
+					confManutencaoBean.modelo = ModeloBean(modeloCbx.selectedItem).descricao;
+					confManutencaoBean.prefixo = PrefixoBean(prefixoCbx.selectedItem).descricao;
+					confManutencaoBean.businessGroup = BusinessGroupBean(bgCbx.selectedItem).descricao;
+					confManutencaoBean.beginRanger = RangerBean(range.selectedItem).beginRanger;
+					confManutencaoBean.endRanger = RangerBean(range.selectedItem).endRanger;
+					confManutencaoBean.contExcessao = (contExcessao.selected == true)?'S':'N';
+					confManutencaoBean.tipoPreco = tipoPrecoCbx.selectedItem.valor;
+					confManutencaoBean.standardJobList = ArrayCollection(gridHoras.dataProvider);
+					confManutencaoBean.idPrecoConfig = ConfiguracaoPrecosBean(precoPmpCbx.selectedItem).id;
+					confManutencaoBean.idFamilia = FamiliaBean(familiaCbx.selectedItem).id;
+					serviceController.saveOrUpdate(confManutencaoBean, "S");					
+				} else {
+						var err:ValidationResultEvent;
+						var errorMessageArray:Array = [];
+						for each (err in validatorErrorArray) {
+							var errField:String = FormItem(err.currentTarget.source.parent).label
+							errorMessageArray.push(errField + ": Este campo é obrigatório.");
+						}
+						Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+			}
+
+			
+			protected function adicionar_clickHandler(event:MouseEvent):void
+			{
+				if(horas.text == "" || standarJob.text == ""){
+					Alert.show("Os campos de Hora e Standard job são de preenchimento obrigatório!", "Alerta");
+					return;
+				}
+			
+				var collection:ArrayCollection = null;
+				var sj:StandardJobBean = new StandardJobBean();
+				if(gridHoras.dataProvider != null){
+					var list:ArrayCollection = ArrayCollection(gridHoras.dataProvider);
+					for(var i:int = 0; i < list.length; i++){
+						var standard:StandardJobBean = StandardJobBean(list.getItemAt(i));
+							if(Number(horas.text) == standard.horas && standarJob.text == standard.standardJob){
+								Alert.show("Essa configuração de Horas e Standard Job já existe!", "Alerta");
+								return;
+							}
+					}
+					sj.horas = Number(horas.text);
+					sj.standardJob = standarJob.text;
+					collection = ArrayCollection(gridHoras.dataProvider);
+					collection.addItem(sj);	
+					horas.text = '';
+					standarJob.text = '';
+				}else{
+					sj.horas = Number(horas.text);
+					sj.standardJob = standarJob.text;
+					gridHoras.dataProvider = new ArrayCollection();					
+					collection = ArrayCollection(gridHoras.dataProvider);
+					collection.addItem(sj);					
+				}
+			}
+			
+			private function novaConfiguracao():void{
+				confManutencaoBean = new ConfigManutencaoBean(); 
+				modeloCbx.selectedIndex = -1;
+				comboPrefixo.removeAll();
+				prefixoCbx.selectedIndex = -1
+				bgCbx.selectedIndex = -1;
+				familiaCbx.selectedIndex = -1;
+				range.dataProvider = null;			
+				contExcessao.selected = false;
+				gridHoras.dataProvider = null;
+				precoPmpCbx.selectedIndex = -1;
+				serviceController.findAllFrequencia();
+			}
+			
+			private function findConfiguracao():void{
+				serviceController.findConfiguracao(modeloPesquisa.text, "S");
+			}
+			
+			private function doubleClickGridPesquisa():void{
+				familiaCbx.selectedIndex = -1;
+				precoPmpCbx.selectedIndex = -1;
+				confManutencaoBean = ConfigManutencaoBean(gridPesquisa.selectedItem);
+				contExcessao.selected = (confManutencaoBean.contExcessao == 'S')?true:false;
+				modeloCbx.dataProvider = confManutencaoBean.modeloList;
+				comboPrefixo = confManutencaoBean.prefixoList;
+				bgCbx.dataProvider = confManutencaoBean.businessGroupList;
+				range.dataProvider = confManutencaoBean.rangerList;
+				gridHoras.dataProvider = confManutencaoBean.standardJobList;
+				
+				this.selectedeFamilia();
+				this.selectedeModelo();
+				this.selectedePrefixo();
+				this.selectedeBusinessGroup();
+				this.selectedTipoPreco();
+				this.selectedeRanger();	
+				this.selectedeConfPreco();
+			}
+			
+			private function selectedeModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:ModeloBean = ModeloBean(modeloList.getItemAt(i));
+					if(confManutencaoBean.modelo == modelo.descricao){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedeFamilia():void{
+				var familiaList:ArrayCollection = ArrayCollection(familiaCbx.dataProvider);
+				for(var i:int=0; i < familiaList.length; i++){
+					var familia:FamiliaBean = FamiliaBean(familiaList.getItemAt(i));
+					if(confManutencaoBean.idFamilia == familia.id){
+						familiaCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedePrefixo():void{
+				for(var i:int=0; i < comboPrefixo.length; i++){
+					var prefixo:PrefixoBean = PrefixoBean(comboPrefixo.getItemAt(i));
+					if(confManutencaoBean.prefixo == prefixo.descricao){
+						prefixoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedeBusinessGroup():void{
+				var bgList:ArrayCollection = ArrayCollection(bgCbx.dataProvider);
+				for(var i:int=0; i < bgList.length; i++){
+					var bg:BusinessGroupBean = BusinessGroupBean(bgList.getItemAt(i));
+					if(confManutencaoBean.businessGroup == bg.descricao){
+						bgCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedTipoPreco():void{
+				var tipoPrecoList:ArrayCollection = ArrayCollection(tipoPrecoCbx.dataProvider);
+				for(var i:int=0; i < tipoPrecoList.length; i++){
+					var tp:String = String(tipoPrecoList.getItemAt(i).valor);
+					if(confManutencaoBean.tipoPreco == tp){
+						tipoPrecoCbx.selectedIndex = i;
+						
+						if(BusinessGroupBean(bgCbx.selectedItem).descricao == "KIT") {
+							tipoPrecoCbx.enabled = true;
+						} else {
+							tipoPrecoCbx.enabled = false;
+						}						
+						
+						break;
+					}
+				}
+			}
+			private function selectedeConfPreco():void{
+				var precoList:ArrayCollection = ArrayCollection(precoPmpCbx.dataProvider);
+				for(var i:int=0; i < precoList.length; i++){
+					var cpb:ConfiguracaoPrecosBean = ConfiguracaoPrecosBean(precoList.getItemAt(i));
+					if(confManutencaoBean.idPrecoConfig == cpb.id){
+						precoPmpCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function selectedeRanger():void{
+				var rangerList:ArrayCollection = ArrayCollection(range.dataProvider);
+				for(var i:int=0; i < rangerList.length; i++){
+					var rg:RangerBean = RangerBean(rangerList.getItemAt(i));
+					if(confManutencaoBean.beginRanger == rg.beginRanger && confManutencaoBean.endRanger == rg.endRanger){
+						range.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			
+			private function changeGridHoras():void{
+				var tipoFrequencia:TipoFrequenciaBean = TipoFrequenciaBean(frequenciaCbx.selectedItem);
+				gridHoras.dataProvider = tipoFrequencia.frequenciaList;
+			}
+			
+			private function configuraTipoPreco():void {
+				if(BusinessGroupBean(bgCbx.selectedItem).descricao == "KIT") {
+					tipoPrecoCbx.enabled = true;
+				} else {
+					tipoPrecoCbx.selectedIndex = 0; 
+					tipoPrecoCbx.enabled = false;
+				}
+			}
+			
+
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				comboPrefixo.removeAll();
+				prefixoCbx.selectedIndex = -1;
+				serviceController.findAllModelos(FamiliaBean(familiaCbx.selectedItem).id);
+			}
+
+		]]>
+	</mx:Script>
+	
+	<mx:ArrayCollection id="tipoPreco">
+		<mx:Object label="Variável" valor="V"/>
+		<mx:Object label="Fixo" valor="F"/>
+	</mx:ArrayCollection>
+	
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoPrefixoCbx" source="{prefixoCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoBgCbx" source="{bgCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoPrecoPmpCbx" source="{precoPmpCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoFamiliaCbx" source="{familiaCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllModelos" result="onResultFindAllModelos(event)" />
+		<mx:method name="findAllPrefixos" result="onResultFindAllPrefixos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findBusinessGroupPM" result="onResultFindBusinessGroupPM(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findRangerPmp" result="onResultFindRangerPmp(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findConfiguracao" result="onResultFindConfiguracao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerConfPmp" result="onResultRemoverConfPmp(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFrequencia" result="onResultFindAllFrequencia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllConfigPrecos" result="onResultFindAllConfigPrecos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFamiliaGerador" result="onResultFindAllFamiliaGerador(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="40" width="100%" horizontalAlign="center" height="215">
+		<mx:Form height="100%" > 
+			<mx:FormItem label="Família" required="true">
+				<mx:ComboBox id="familiaCbx" selectedIndex="-1" labelField="descricao" prompt="Selecione" change="familiaCbx_changeHandler(event)" dataProvider="{comboFamilia}"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox x="48" y="1" id="modeloCbx" labelField="descricao" dataProvider="{comboModelo}" change="onChangeModelo()" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Prefixo" required="true">
+				<mx:ComboBox x="53" y="3" id="prefixoCbx" labelField="descricao" change="onChangePrefixo()" dataProvider="{comboPrefixo}" prompt="Selecione" selectedIndex="-1"/>
+			</mx:FormItem>
+			<mx:FormItem label="Business Group" required="true">
+				<mx:ComboBox x="54" y="-1" id="bgCbx" labelField="descricao" prompt="Selecione" selectedIndex="-1" change="configuraTipoPreco()" dataProvider="{comboBG}"/>
+			</mx:FormItem>
+			<mx:FormItem label="Tipo Preço" required="true">
+				<mx:ComboBox id="tipoPrecoCbx" labelField="label" dataProvider="{tipoPreco}" prompt="Selecione" selectedIndex="-1" />
+			</mx:FormItem>
+			<mx:FormItem label="Tipo">
+				<mx:CheckBox label="Config de excessão" id="contExcessao"/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:Form height="100%" > 
+			<mx:FormItem label="Preços de PMP" required="true"  >
+				<mx:ComboBox labelField="descricao" id="precoPmpCbx" prompt="selecione" />
+			</mx:FormItem>
+			<mx:FormItem label="Ranger" required="true"  height="94" width="100%">
+				<mx:List height="84" id="range" labelField="descricao"  width="185"></mx:List>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:VBox height="205">
+			<mx:FormItem label="Frequência" required="true">
+				<mx:ComboBox id="frequenciaCbx" labelField="descricao" prompt="selecione" change="changeGridHoras()"/>
+			</mx:FormItem>
+			<mx:DataGrid width="100%" height="145" id="gridHoras">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Meses" dataField="horas"/>
+					<mx:DataGridColumn headerText="Standard Job" dataField="standardJob"/>
+					<mx:DataGridColumn headerText="Excluir">
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERSTANDARDJOB', true))}"/>
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+			<mx:HBox width="100%">
+				<mx:FormItem label="Meses" required="true" width="147">
+					<mx:TextInput width="81" id="horas" restrict="0-9" maxChars="10"/>
+				</mx:FormItem>
+				<mx:FormItem label="Standard Job" required="true" width="210">
+					<mx:TextInput width="81" id="standarJob" maxChars="10"/>
+				</mx:FormItem>
+				<mx:Button label="Adicionar" click="adicionar_clickHandler(event)"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Configuração de Manutenção de PMP Gerador Standby xxx" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	
+	<mx:HBox x="10" y="264" width="100%" horizontalAlign="center" height="27">
+	<mx:Grid  width="100%" verticalAlign="middle">
+		<mx:GridRow width="100%" height="28">
+			<mx:GridItem width="100%" height="100%" paddingLeft="5" verticalAlign="middle">
+				<mx:FormItem label="Modelo" required="true">
+					<mx:TextInput width="97" id="modeloPesquisa"/>
+				</mx:FormItem>	
+				<mx:Button label="Pesquisar" click="findConfiguracao()"/>
+			</mx:GridItem>
+			<mx:GridItem width="100%" height="100%" verticalAlign="middle">
+				<mx:Button label="Salvar" click="clickHandlerSalvar(event)"/>
+				<mx:Button label="Novo" click="novaConfiguracao()"/>
+			</mx:GridItem>
+		</mx:GridRow>
+	</mx:Grid>
+	</mx:HBox>
+	
+	<mx:HBox x="0" y="298" height="303" paddingLeft="5" paddingRight="5" width="100%" horizontalAlign="center"  verticalAlign="middle">
+	<mx:DataGrid width="100%" height="100%" id="gridPesquisa" doubleClick="doubleClickGridPesquisa()" doubleClickEnabled="true">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Modelo" dataField="modelo"/>
+			<mx:DataGridColumn headerText="Prefixo" dataField="prefixo"/>
+			<mx:DataGridColumn headerText="Business Group" dataField="businessGroup"/>
+			<mx:DataGridColumn headerText="Ranger" dataField="rangerDescription"/>
+			<mx:DataGridColumn headerText="Excluir">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:VBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERCONFPMP', true))}"/>
+						</mx:VBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	</mx:HBox>
+	
+</mx:Canvas>

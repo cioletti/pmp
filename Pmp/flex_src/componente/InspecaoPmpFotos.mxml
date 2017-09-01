@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleTitleWindow  title="Fotos Inspeção PMP" xmlns="util.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" alpha="0.97" cornerRadius="4" borderColor="#cccccc" backgroundColor="#FDFDFD" xmlns:componente="componente.*" verticalScrollPolicy="auto">
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import mx.containers.HBox;
+			import mx.controls.Alert;
+			import mx.controls.Image;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var urlImg:String;
+			private var idOsPalmDt:Number;
+						
+			public function init(urlLogin:String, idOsPalmDt:Number):void{					
+				this.urlLogin = urlLogin;	
+				this.idOsPalmDt = idOsPalmDt;
+				serviceController.getUrlImg();
+			}	
+			private function onResultFindAllFotos(event:ResultEvent):void{
+				var coll:ArrayCollection = ArrayCollection(event.result);
+				this.mountPanelFotos(coll);
+					
+			}
+			private function onResultGetUrlImg(event:ResultEvent):void{
+				urlImg = String(event.result);
+				serviceController.findAllFotos(idOsPalmDt);
+					
+			}
+			private function mountPanelFotos(coll:ArrayCollection):void{
+				for(var i:int=0; i < coll.length; i++){
+					var idFotoInspecao:Number = Number(coll.getItemAt(i));
+					var hBox:HBox = new HBox();
+					for(var j:int=0; j < 4; j++){
+					
+						hBox.percentWidth = 100;
+						hBox.percentHeight = 50;
+						
+						hBox.setStyle('horizontalAlign','center');
+						var img:Image = new Image();
+						img.percentHeight = 60;
+						img.percentWidth = 50;
+						img.source = urlImg+"GetImgInspecao?idFotoInspecao="+idFotoInspecao
+						hBox.addChild(img);
+						this.addChild(hBox)
+						
+						i++;
+						if(i == coll.length){
+							return;
+						}else{
+							idFotoInspecao = Number(coll.getItemAt(i));
+						}
+					}
+				}
+			}
+			
+		]]>
+	</mx:Script>
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllFotos" result="onResultFindAllFotos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="getUrlImg" result="onResultGetUrlImg(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+		
+		
+</ModuleTitleWindow>

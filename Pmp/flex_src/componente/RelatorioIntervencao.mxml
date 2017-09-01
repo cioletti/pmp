@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			
+			import mx.controls.Alert;
+			
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			public var idContrato:Number;
+			public var idConthoras:Number;
+			public var horasRevisao:Number;
+			private var urlReport:String;
+			private var urlLogin:String;
+			
+			public function init(urlLogin:String):void{
+				serviceController.getUrlReport()
+			}		
+			
+			public function generatePDF():void
+			{	
+				var uv:URLVariables = new URLVariables();
+				uv.numeroOs = numOs.text;
+				var url:URLRequest = new URLRequest(urlReport+"/PropostaPdf");
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+				
+			}
+			public function verificaOs():void
+			{	
+				if(numOs.text ==""){
+					Alert.show("Campo Número Os é obrigatorio!", "Alerta");
+				}else{
+					serviceController.verificarOs(numOs.text.toUpperCase());
+				}
+						
+			}
+			
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+			}
+			private function onResultVerificarOs(event:ResultEvent):void{
+				if(Boolean(event.result) == false){
+					Alert.show("Não existe revisão para esta OS!", "Alerta");
+				}
+				else{
+					generatePDF();
+				}
+			}
+			
+		]]>
+	</mx:Script>	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificarOs" result="onResultVerificarOs(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	
+	
+	<mx:VBox verticalAlign="middle" width="100%" height="100%">
+		<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+			<mx:Label text="Relatorio de Intervenção" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:VBox width="100%" height="100%" horizontalAlign="center">
+			<mx:HBox width="100%" horizontalAlign="center" height="23" textAlign="center">
+				<mx:FormItem label="Numero O.S." required="true" width="318" x="27" y="10">
+					<mx:TextInput id="numOs" toolTip="Digite o numero da Os"/>
+				</mx:FormItem>
+			</mx:HBox>
+			<mx:Button label="Gerar" id="enviarBtn" click="verificaOs()"/>
+		</mx:VBox>
+		
+	</mx:VBox>
+	
+</mx:Canvas>

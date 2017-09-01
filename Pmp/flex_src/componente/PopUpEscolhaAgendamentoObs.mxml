@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Escolha uma opção" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="350" height="130">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import util.ProgressBarHelper;
+			
+			public var opcaoAgObs:String;
+						
+			public function init():void{
+				opcaoAgObs = null;				
+			}		
+
+			protected function agendamentoBtn_clickHandler(event:MouseEvent):void
+			{
+				opcaoAgObs = "Ag";
+				this.close();
+			}		
+
+			protected function obsBtn_clickHandler(event:MouseEvent):void
+			{
+				opcaoAgObs = "Obs"
+				this.close();
+			}
+
+		]]>
+	</mx:Script>	
+
+	<mx:VBox verticalAlign="middle" width="100%" height="100%">
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button id="agendamentoBtn" label="Incluir Agendamento" click="agendamentoBtn_clickHandler(event)"/>
+			<mx:Button id="obsBtn" label="Incluir Obs." click="obsBtn_clickHandler(event)"/>
+		</mx:HBox>
+		
+	</mx:VBox>
+	
+</util:ModuleTitleWindow>

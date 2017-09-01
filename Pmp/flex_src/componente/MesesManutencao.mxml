@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.FamiliaBean;
+			import bean.MesesManutencaoBean;
+			import bean.ModeloBean;
+			
+			import flash.sampler.isGetterSetter;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.ValidationResultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.validators.Validator;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var mesesManutBean:MesesManutencaoBean = new MesesManutencaoBean();
+			private var isGridSelected:Boolean = false;
+			
+			public function init(urlLogin:String):void{
+				gridMeses.addEventListener("REMOVERMESESMANUTENCAO", removerMesesManutencao);
+				
+				myValidators = new Array();
+				myValidators.push(campoModeloCbx);
+				myValidators.push(campoFamiliaCbx);
+				
+				this.urlLogin = urlLogin;
+				serviceController.findAllFamilia();
+			}
+			
+			private function onResultFindAllMesesManutencao(event:ResultEvent):void{
+				if(event.result != null){
+					gridMeses.dataProvider = event.result;
+				}
+			}
+			
+			private function removerMesesManutencao(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente apagar?", "Apagar", 3, this, alertClickHandler);
+				
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					mesesManutBean = MesesManutencaoBean(gridMeses.selectedItem);
+					serviceController.removerMesesManutencao(mesesManutBean);	
+				}
+			}
+			
+			private function onResultRemoverMesesManutencao(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					Alert.show("Cadastro removido com sucesso.");
+					ArrayCollection(gridMeses.dataProvider).removeItemAt(gridMeses.selectedIndex);
+					novoBtn_clickHandler(null);
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação!");
+				}
+			}
+			
+			[Bindable]
+			private var comboFamilia:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				if(comboFamilia.length > 0){
+					comboFamilia.removeAll();
+				}
+				comboFamilia.addAll(ArrayCollection(event.result));
+				familiaCbx.dataProvider = comboFamilia;
+			}
+			
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllModelos(FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			
+			[Bindable]
+			private var comboModelo:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllModelos(event:ResultEvent):void{
+				if(comboModelo.length > 0){
+					comboModelo.removeAll();
+				}
+				
+				comboModelo.addAll(ArrayCollection(event.result));
+				modeloCbx.dataProvider = comboModelo;
+				
+				if(isGridSelected){
+					this.selectedModelo();
+					isGridSelected = false;
+				}
+				
+			}
+			
+
+			protected function salvarBtn_clickHandler(event:MouseEvent):void
+			{
+				var validatorErrorArray:Array = Validator.validateAll(myValidators);;
+				var isValidForm:Boolean = validatorErrorArray.length == 0;
+				
+				if (isValidForm) {
+					
+					mesesManutBean.idFamilia = FamiliaBean(familiaCbx.selectedItem).id;
+					mesesManutBean.idModelo = ModeloBean(modeloCbx.selectedItem).idModelo;
+					mesesManutBean.mesesManutencao = manutencaoNS.value;
+					
+					serviceController.saveOrUpdate(mesesManutBean);
+					
+				}else {
+					var err:ValidationResultEvent;
+					var errorMessageArray:Array = [];
+					for each (err in validatorErrorArray) {
+						var errField:String = FormItem(err.currentTarget.source.parent).label
+						errorMessageArray.push(errField + ": Este campo é obrigatório.");
+					}
+					Alert.show(errorMessageArray.join("\n\n"), "Invalid form...", Alert.OK);
+				}
+
+			}
+
+			private function onResultSaveOrUpdate(event:ResultEvent):void{
+				if(event.result != null){
+					mesesManutBean = MesesManutencaoBean(event.result);
+					Alert.show("Operação realizada com sucesso.", "Alerta!");
+					serviceController.findAllMesesManutencao(FamiliaBean(familiaCbx.selectedItem).id, ModeloBean(modeloCbx.selectedItem).idModelo)
+				}else{
+					Alert.show("Ocorreu um erro ao realizar a operação ou já existe cadastro para a família e modelo selecionados.", "Alerta!");
+				}
+			}
+
+			protected function novoBtn_clickHandler(event:MouseEvent):void
+			{
+				mesesManutBean = new MesesManutencaoBean();
+				familiaCbx.selectedIndex = -1;
+				modeloCbx.selectedIndex = -1;
+				comboModelo.removeAll();
+				manutencaoNS.value = 1;
+			}
+
+
+			protected function gridMeses_doubleClickHandler(event:MouseEvent):void
+			{
+				if(gridMeses.selectedItem != null){
+					mesesManutBean = MesesManutencaoBean(gridMeses.selectedItem);
+					isGridSelected = true;
+					manutencaoNS.value = MesesManutencaoBean(gridMeses.selectedItem).mesesManutencao;
+					this.selectedFamilia();
+					serviceController.findAllModelos(FamiliaBean(familiaCbx.selectedItem).id)
+					
+				}
+			}
+			
+			private function selectedFamilia():void{
+				var familiaList:ArrayCollection = ArrayCollection(familiaCbx.dataProvider);
+				for(var i:int=0; i < familiaList.length; i++){
+					var familia:FamiliaBean = FamiliaBean(familiaList.getItemAt(i));
+					if(familia.id == MesesManutencaoBean(gridMeses.selectedItem).idFamilia){
+						familiaCbx.selectedIndex = i;						
+						break;
+					}
+				}
+			}
+			
+			private function selectedModelo():void{
+				var modeloList:ArrayCollection = ArrayCollection(modeloCbx.dataProvider);
+				for(var i:int=0; i < modeloList.length; i++){
+					var modelo:ModeloBean = ModeloBean(modeloList.getItemAt(i));
+					if(modelo.idModelo == MesesManutencaoBean(gridMeses.selectedItem).idModelo){
+						modeloCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+
+
+			protected function modeloCbx_changeHandler(event:ListEvent):void
+			{
+				serviceController.findAllMesesManutencao(FamiliaBean(familiaCbx.selectedItem).id, ModeloBean(modeloCbx.selectedItem).idModelo);
+			}
+
+		]]>
+		
+	</mx:Script>
+	
+	<mx:NumberValidator id="campoFamiliaCbx" source="{familiaCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	<mx:NumberValidator id="campoModeloCbx" source="{modeloCbx}" lowerThanMinError="Este campo é obrigatório." property="selectedIndex" minValue="0" />
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllModelos" result="onResultFindAllModelos(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveOrUpdate" result="onResultSaveOrUpdate(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllMesesManutencao" result="onResultFindAllMesesManutencao(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerMesesManutencao" result="onResultRemoverMesesManutencao(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:VBox width="100%" horizontalAlign="center" height="100%">
+		
+		<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+			<mx:Label text="Tempo para manutenção" fontWeight="bold"/>
+		</mx:ApplicationControlBar>
+		
+		<mx:Form> 
+			<mx:FormItem label="Família" required="true">
+				<mx:ComboBox id="familiaCbx" selectedIndex="-1" labelField="descricao" prompt="Selecione" change="familiaCbx_changeHandler(event)" dataProvider="{comboFamilia}"></mx:ComboBox>
+			</mx:FormItem>
+			<mx:FormItem label="Modelo" required="true">
+				<mx:ComboBox x="48" y="1" id="modeloCbx" labelField="descricao" dataProvider="{comboModelo}" prompt="Selecione" selectedIndex="-1" change="modeloCbx_changeHandler(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Meses para Manutenção" required="true">
+				<mx:NumericStepper id="manutencaoNS" minimum="1" maximum="99" maxChars="2" toolTip="Inclua os meses para manutenção(Considere um mês como 30 dias)."/>
+			</mx:FormItem>
+		</mx:Form>
+		<mx:HBox width="100%" horizontalAlign="center">
+			<mx:Button label="Salvar" id="salvarBtn" click="salvarBtn_clickHandler(event)"/>
+			<mx:Button label="Novo" id="novoBtn" click="novoBtn_clickHandler(event)"/>
+		</mx:HBox>
+		<mx:HBox width="100%" height="100%">
+			<mx:DataGrid id="gridMeses" width="100%" height="100%" doubleClickEnabled="true" doubleClick="gridMeses_doubleClickHandler(event)">
+				<mx:columns>
+					<mx:DataGridColumn headerText="Família" dataField="familiaStr"/>
+					<mx:DataGridColumn headerText="Modelo" dataField="modeloStr"/>
+					<mx:DataGridColumn headerText="Meses Manutenção" dataField="mesesManutencao"/>
+					<mx:DataGridColumn headerText="Excluir">
+						<mx:itemRenderer> 
+							<mx:Component>
+								<mx:VBox verticalGap="2" horizontalAlign="center">
+									<mx:Image source="img/remover.png" width="15" buttonMode="true" height="15" click="{dispatchEvent(new Event('REMOVERMESESMANUTENCAO', true))}"/>
+								</mx:VBox>
+							</mx:Component> 
+						</mx:itemRenderer>
+					</mx:DataGridColumn>
+				</mx:columns>
+			</mx:DataGrid>
+					
+		</mx:HBox>
+		
+	</mx:VBox>
+	
+</mx:Canvas>

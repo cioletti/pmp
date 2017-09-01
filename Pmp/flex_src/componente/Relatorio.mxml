@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%" >	
+	<mx:Script>
+		<![CDATA[
+			import bean.FilialBean;
+			
+			import mx.containers.Box;
+			import mx.controls.Alert;
+			import mx.events.ListEvent;
+			import mx.printing.FlexPrintJob;
+			import mx.printing.FlexPrintJobScaleType;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.DateValidator;
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			
+			[Bindable]
+			private var comboFilial: ArrayCollection = new ArrayCollection();			
+			
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				serviceController.getUrlReport();
+			} 
+			private function gerarReport():void{
+				if(tipoRelatorio.selectedIndex == -1){
+					Alert.show("Selecione um tipo de relatório", "Alerta");
+					return;
+				}
+				var uv:URLVariables = new URLVariables();
+				if(tipoRelatorio.selectedItem.data == 'GE'){
+					if(tipoRelatorio.selectedIndex == -1){
+						Alert.show("Selecione um tipo de relatório", "Alerta");
+						return;
+					}
+					if(tipoRelatorio.selectedItem.data == 'GE'){
+						if(!DateValidator.validateDate(dataInicial.text, "/")){
+							Alert.show("Data inicial INVÁLIDA!","Alerta");
+							return;
+						}
+					}
+					if(tipoRelatorio.selectedItem.data == 'GE'){
+						if(!DateValidator.validateDate(dataFinal.text, "/")){
+							Alert.show("Data final INVÁLIDA!","Alerta");
+							return;
+						}
+					}
+					if(dataInicial.text != "" && dataFinal.text != ""){
+						uv.beginDate = dataInicial.text;
+						uv.endDate = dataFinal.text;
+						uv.tipoRelatorio = tipoRelatorio.selectedItem.data;
+						generatePDF(uv);
+					}else{
+						Alert.show("Todos os campos são de preenchimento obrigatório", "Alerta");
+						return;
+					}
+				}
+				if(tipoRelatorio.selectedItem.data == 'IR'){
+					if(tipoRelatorio.selectedIndex == -1){
+						Alert.show("Selecione um tipo de relatório", "Alerta");
+						return;
+					}
+						if(!DateValidator.validateDate(dataInicial.text, "/")){
+							Alert.show("Data inicial INVÁLIDA!","Alerta");
+							return;
+						}
+						if(!DateValidator.validateDate(dataFinal.text, "/")){
+							Alert.show("Data final INVÁLIDA!","Alerta");
+							return;
+						}
+					if(dataInicial.text != "" && dataFinal.text != ""){
+						uv.beginDate = dataInicial.text;
+						uv.endDate = dataFinal.text;
+						uv.tipoRelatorio = tipoRelatorio.selectedItem.data;
+						generatePDF(uv);
+					}else{
+						Alert.show("Todos os campos são de preenchimento obrigatório", "Alerta");
+						return;
+					}
+					
+				}
+				if(tipoRelatorio.selectedItem.data == 'TP'){
+					
+						uv.tipoRelatorio = tipoRelatorio.selectedItem.data;
+						generatePDF(uv);
+					
+						return;
+					
+				}
+				
+				if(tipoRelatorio.selectedItem.data == 'TR') {
+					
+					uv.tipoRelatorio = tipoRelatorio.selectedItem.data;
+					
+					if(idFilial.selectedItem == null) {
+						uv.idFilial = -1;
+					} else {
+						uv.idFilial = idFilial.selectedItem.stno;
+					}
+					
+					generatePDF(uv);
+				}
+				if(tipoRelatorio.selectedItem.data == 'IR') {
+					
+					uv.tipoRelatorio = tipoRelatorio.selectedItem.data;
+					uv.beginDate = dataInicial.text;
+					uv.endDate = dataFinal.text;	
+					
+					if(idFilial.selectedItem == null) {
+						uv.idFilial = -1;
+					} else {
+						uv.idFilial = idFilial.selectedItem.stno;
+					}
+					
+					generatePDF(uv);
+				}
+				if(tipoRelatorio.selectedItem.data == 'TA') {
+					if(idFilial.selectedItem == null) {
+						serviceController.findTotalAgendamento(-1);
+					} else {
+						serviceController.findTotalAgendamento(FilialBean(idFilial.selectedItem).stno);
+					}
+					
+				}
+				if(tipoRelatorio.selectedItem.data == 'TC') {
+					
+					uv.tipoRelatorio = tipoRelatorio.selectedItem.data;
+					uv.beginDate = dataInicial.text;
+					uv.endDate = dataFinal.text;	
+					
+					if(idFilial.selectedItem == null) {
+						uv.idFilial = -1;
+					} else {
+						uv.idFilial = idFilial.selectedItem.stno;
+					}
+					
+					generatePDF(uv);
+				}
+				
+			} 
+			
+			private var urlReport:String = "";
+			public function generatePDF(uv:URLVariables):void
+			{				
+				var url:URLRequest = new URLRequest(urlReport+"/ReportPmp");
+				url.method = "GET";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+
+			private function onResultGetUrlReport(event:ResultEvent):void{
+				urlReport = String(event.result);
+				serviceController.findAllFiliais();
+			}
+			private function onResultFindTotalAgendamento(event:ResultEvent):void{
+				chartTotalAgendamentos.dataProvider = ArrayCollection(event.result);
+				chartPanel.visible = true;
+			}
+
+			protected function tipoRelatorio_changeHandler(event:ListEvent):void
+			{
+				datas.includeInLayout = true;
+				datas.visible = true;
+				
+				boxFilial.includeInLayout = false;
+				boxFilial.visible = false;
+				chartPanel.visible = false;
+				
+				switch(tipoRelatorio.selectedItem.data){
+					case 'TP':
+						datas.includeInLayout = false;
+						datas.visible = false;
+						break;
+					
+					case 'TR':
+						datas.includeInLayout = false;
+						datas.visible = false;
+						
+						boxFilial.includeInLayout = true;
+						boxFilial.visible = true;
+						
+						break;
+					case 'IR':
+						datas.includeInLayout = true;
+						datas.visible = true;
+						
+						boxFilial.includeInLayout = true;
+						boxFilial.visible = true;
+						
+						break;
+					case 'TA':
+						datas.includeInLayout = false;
+						datas.visible = false;
+						boxFilial.includeInLayout = true;
+						boxFilial.visible = true;
+						break;
+					case 'TC':
+						datas.includeInLayout = true;
+						datas.visible = true;
+						boxFilial.includeInLayout = true;
+						boxFilial.visible = true;
+						break;
+				}
+			}
+			
+			private function onResultFindAllFiliais(event:ResultEvent): void {
+				comboFilial.removeAll();
+				var fil: FilialBean = new FilialBean();
+				fil.stnm = "Todas";
+				fil.stno = -1;
+				comboFilial.addItem(fil);
+				comboFilial.addAll(ArrayCollection(event.result));
+			}
+			
+			private function imprimir():void{
+				print(chartPanel);
+			}
+			
+			private function print(container:Panel):void
+			{
+				var job:FlexPrintJob = new FlexPrintJob();
+				
+				if (job.start()) {
+					job.addObject(container, FlexPrintJobScaleType.MATCH_WIDTH);
+					job.send();
+				}
+				
+			}
+
+		]]>
+	</mx:Script>
+	<mx:Style>
+		.incomeSeries {
+			fontSize:9;
+			fontWeight:bold;
+			labelPosition:inside;
+			labelAlign:top;
+		}
+		
+		.expensesSeries {
+			fontSize:14;
+			labelPosition:inside;
+			labelAlign:middle;
+		}
+		
+	</mx:Style>  
+	<mx:ArrayCollection id="tipoRelCombo">
+		<mx:Object label="Gestão de Equipamentos" data="GE"/>
+		<mx:Object label="Tabela de Preço" data="TP"/>
+		<!--mx:Object label="Total de Revisões menor que 50 horas" data="TR"/-->
+		<mx:Object label="Índice de Renovação de Contratos" data="IR"/>
+		<mx:Object label="Total de Agendamentos" data="TA"/>
+		<mx:Object label="Tabela de Comissão" data="TC"/>
+	</mx:ArrayCollection>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="getUrlReport" result="onResultGetUrlReport(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFiliais" result="onResultFindAllFiliais(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="findTotalAgendamento" result="onResultFindTotalAgendamento(event);ProgressBarHelper.removeProgressBar()"/>	
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Relatório" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="37" width="100%" horizontalAlign="center">
+		<mx:Form>
+			<mx:FormItem label="Tipo Relatório" required="true">
+				<mx:ComboBox dataProvider="{tipoRelCombo}" labelField="label" id="tipoRelatorio" prompt="Selecione" selectedIndex="-1" change="tipoRelatorio_changeHandler(event)"></mx:ComboBox>
+			</mx:FormItem>
+
+			<mx:HBox id="datas" visible="false" width="100%">
+				<mx:Label text="Data Início" />
+				<mx:DateField id="dataInicial" editable="true" formatString="DD/MM/YYYY"/>
+				<mx:Label text="Data Fim"/>
+				<mx:DateField id="dataFinal" editable="true" formatString="DD/MM/YYYY"/>
+			</mx:HBox>
+
+			<mx:FormItem label="Filial" required="true" id="boxFilial" visible="false">
+				<mx:ComboBox dataProvider="{comboFilial}" labelField="stnm" id="idFilial" prompt="Todas" selectedIndex="-1"></mx:ComboBox>
+			</mx:FormItem>					
+			<mx:HBox horizontalAlign="center" width="100%">
+				<mx:Button label="Gerar" click="gerarReport()"/>
+			</mx:HBox>
+
+		</mx:Form>
+	</mx:HBox>
+	<mx:Panel title="Total Agendamentos" x="0" y="160" height="100%" width="100%" id="chartPanel" visible="false" horizontalAlign="center">
+	<mx:ColumnChart x="392" y="271" id="chartTotalAgendamentos" height="100%" width="100%" showDataTips="true" >
+		<mx:horizontalAxis>
+			<mx:CategoryAxis categoryField="descricao" dataProvider="{chartTotalAgendamentos.dataProvider}"/>
+		</mx:horizontalAxis>
+		<mx:series>
+			<mx:ColumnSeries xField="descricao" yField="valor" styleName="expensesSeries" displayName="Agendamentos"/>
+		</mx:series>
+	</mx:ColumnChart>
+	<mx:Button label="Imprimir" click="imprimir()"/>
+	</mx:Panel>	
+</mx:Canvas>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	
+	
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.rpc.events.ResultEvent;
+			import util.ProgressBarHelper;
+			import bean.UsuarioBean;
+			private var urlLogin:String;
+			
+			public function init(urlLogin:String):void{
+				this.urlLogin = urlLogin;
+				
+			}
+			
+			protected function sincronizar_clickHandler(event:MouseEvent):void
+			{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";				
+				Alert.show("Deseja realmente sincronizar Stander Job? Isso irá travar o sistema até que a sincronização seja concluída.", "Alerta", 3, this,alertClickHandlerSincronizar );
+			}
+			
+			protected function alertClickHandlerSincronizar(event:CloseEvent):void{
+				if (event.detail==Alert.YES) {
+					serviceController.sincronizarStanderJob();
+				}
+			}
+			
+			private function onResultsincronizarStanderJob(event:ResultEvent):void{
+				if(event.result != false){
+					Alert.show("Sincronizado com sucesso!", "Alerta");
+				}else{
+					Alert.show("Ocorreu um erro ao tentar Sincronizar!","Alerta");
+				}
+			}
+
+		]]>
+	</mx:Script>
+
+	<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+		<mx:Label text="Sincronizar Stander Job" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	
+	<mx:HBox  width="100%" y="60" horizontalAlign="center">
+		<mx:Button label="Sincronizar" click=" sincronizar_clickHandler(event)"/>
+	</mx:HBox>
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="sincronizarStanderJob" result="onResultsincronizarStanderJob(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>	
+</mx:Canvas>

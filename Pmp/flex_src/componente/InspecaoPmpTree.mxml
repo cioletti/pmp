@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModuleTitleWindow  title="Árvore de Inspeção PMP" xmlns="util.*" xmlns:mx="http://www.adobe.com/2006/mxml" width="1038" height="516" alpha="0.97" cornerRadius="4"  xmlns:componente="componente.*">
+	
+	<mx:Script>
+		<![CDATA[
+			import bean.InspecaoPmpBean;
+			import bean.InspecaoPmpTreeBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var myValidators:Array;
+			private var inspecaoPmp:InspecaoPmpBean = new InspecaoPmpBean() ;
+			private var inspecaoPmpTree:InspecaoPmpTreeBean = new InspecaoPmpTreeBean();
+			public var inspecaoPmpFotos: InspecaoPmpFotos;
+			private var idOsPalm:Number;
+						
+			public var clienteDados:ArrayCollection = new ArrayCollection();
+			public var osDados:ArrayCollection = new ArrayCollection();
+			public var maquinaDados:ArrayCollection = new ArrayCollection();	
+							
+			public function init(urlLogin:String):void{		
+				myValidators = new Array();
+				this.urlLogin = urlLogin;
+				montaCabecalho();				
+				serviceController.findAllInspencaoPmpTree(inspecaoPmp.id);		
+			
+			}
+			[Bindable]
+			private var dataList:ArrayCollection = new ArrayCollection();
+			private function onResultFindAllInspencaoPmpTree(event:ResultEvent):void{
+				dataList.addAll(ArrayCollection(event.result));
+				
+			}
+			
+			public function montaCabecalho():void{
+				
+				var nomeCliente:Object = new Object();
+				nomeCliente.name = "Nome:     " + inspecaoPmp.cliente;
+				clienteDados.addItem(nomeCliente);
+				
+				var contatoCliente:Object = new Object();
+				contatoCliente.name = "Contato:  " + inspecaoPmp.contato;
+				clienteDados.addItem(contatoCliente);
+				
+				var telefoneCliente:Object = new Object();
+				telefoneCliente.name = "Telefone: " + inspecaoPmp.telefone;
+				clienteDados.addItem(telefoneCliente);
+				
+				gridCliente.dataProvider = clienteDados;
+				
+				var numOs:Object = new Object();
+				numOs.name = "Núm. OS: " + inspecaoPmp.numeroOs;
+				osDados.addItem(numOs);
+				
+				var dataOs:Object = new Object();
+				dataOs.name = "Data:       " + inspecaoPmp.emissao;
+				osDados.addItem(dataOs);				
+				
+				var tecnicoOs:Object = new Object();
+				tecnicoOs.name = "Técnico:   " + inspecaoPmp.tecnico;
+				osDados.addItem(tecnicoOs);				
+				
+				gridOs.dataProvider = osDados;
+				
+				var modeloMaquina:Object = new Object();
+				modeloMaquina.name = "Modelo:      " + inspecaoPmp.modelo;
+				maquinaDados.addItem(modeloMaquina);
+				
+				var serieMaquina:Object = new Object();
+				serieMaquina.name = "Núm. Serie: " + inspecaoPmp.serie;
+				maquinaDados.addItem(serieMaquina);
+				
+				var horimetroMaquina:Object = new Object();
+				horimetroMaquina.name = "Horímetro:   " + inspecaoPmp.horimetro;
+				maquinaDados.addItem(horimetroMaquina);
+				
+				gridMaquina.dataProvider = maquinaDados;
+				
+				familiaDesc.text = inspecaoPmp.familia;
+				maquina.text = inspecaoPmp.equipamento;
+			
+			}
+			
+			public function recebeObjeto(_inspecaoPmp: InspecaoPmpBean): void{				
+				inspecaoPmp = _inspecaoPmp;				
+			}
+			
+			private function abrirFotos():void{
+				//inspecaoPmpTree = InspecaoPmpTreeBean(gridTree.selectedItem);
+				
+				//inspecaoPmpFotos = new InspecaoPmpFotos();
+				//inspecaoPmpFotos.recebeObjeto(inspecaoPmpTree.);
+				//configuracaoOperacional.addEventListener(CloseEvent.CLOSE, removePopUp);
+				//PopUpManager.addPopUp(configuracaoOperacional, this, true);
+				//PopUpManager.centerPopUp(configuracaoOperacional);
+				//configuracaoOperacional.init(urlLogin);
+				
+			}
+		
+
+			private function doubleClickGridTree():void{
+				var tree:InspecaoPmpTreeBean = InspecaoPmpTreeBean(gridTree.selectedItem);
+				if(tree.fotoUrlImage != null && tree.fotoUrlImage != ""){
+					this.popupTree(tree.idOsPalmDt);
+				}
+			}
+
+			private var pmFotos:InspecaoPmpFotos;
+			public function popupTree(idOsPalmDt:Number):void{
+				pmFotos = new InspecaoPmpFotos();
+				pmFotos.addEventListener(CloseEvent.CLOSE, removePopUpTree);
+				PopUpManager.addPopUp(pmFotos,this,true);
+				//PopUpManager.centerPopUp(pmFotos)
+				pmFotos.height = 500;
+				pmFotos.width= 1000;
+				pmFotos.init(urlLogin, idOsPalmDt);
+				
+				
+			}
+			private function removePopUpTree(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+
+			
+
+
+			protected function pdf_clickHandler(event:MouseEvent):void
+			{
+								
+					var uv:URLVariables = new URLVariables();
+					uv.osPalmId = inspecaoPmp.id;
+					uv.equipamento = inspecaoPmp.equipamento;
+					
+					var url:URLRequest = new URLRequest(urlLogin+"/InspecaoReport");
+					url.method = "POST";
+					url.data = uv;
+					navigateToURL(url,"_blank");
+					
+				
+			}
+
+		]]>
+	</mx:Script>
+	
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllInspencaoPmpTree" result="onResultFindAllInspencaoPmpTree(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:HBox x="0" y="0" width="100%" paddingBottom="10" paddingLeft="3" paddingRight="0" paddingTop="2">
+	<mx:VBox x="0" y="49" width="466" horizontalAlign="left" verticalAlign="middle" paddingBottom="3" paddingTop="3">
+		<mx:FormItem label="Família: "  width="462">
+			<mx:Text id="familiaDesc"/>
+		</mx:FormItem>
+		<mx:FormItem label="Máquina:" width="461">
+			<mx:Text id="maquina"/>
+		</mx:FormItem>
+	</mx:VBox>
+	<mx:VBox width="519" horizontalAlign="left" verticalAlign="middle" paddingBottom="3" paddingTop="3" height="51">
+		<mx:Image source="img/contrato.png" width="33" id="contratoPdf" click="pdf_clickHandler(event)" buttonMode="true" height="23"/>
+	</mx:VBox>
+	</mx:HBox>	
+	<mx:HBox x="0" y="70" width="1000" height="113" paddingBottom="10" paddingLeft="3" paddingRight="0" paddingTop="2">
+	<mx:DataGrid width="283" height="90" id="gridCliente">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Cliente" dataField="name"/>		
+		</mx:columns>
+	</mx:DataGrid>
+	
+	<mx:DataGrid width="402" height="90" id="gridOs" >
+		<mx:columns>
+			<mx:DataGridColumn headerText="Ordem de Serviço" dataField="name"/>		
+		</mx:columns>
+	</mx:DataGrid>	
+		
+	<mx:DataGrid width="290" height="90" id="gridMaquina" >
+		<mx:columns>
+			<mx:DataGridColumn headerText="Máquina" dataField="name"/>		
+		</mx:columns>		
+	</mx:DataGrid>		
+	</mx:HBox>
+		 
+	<mx:VBox x="0" y="70" width="100%" height="100%" paddingBottom="10" paddingLeft="3" paddingRight="3" paddingTop="2">
+		<mx:AdvancedDataGrid width="100%" height="100%" id="gridTree"    
+		     folderClosedIcon="{null}" 
+			 folderOpenIcon="{null}" 
+			 defaultLeafIcon="{null}" doubleClick="doubleClickGridTree()" doubleClickEnabled="true">	
+			<mx:dataProvider>
+				<mx:HierarchicalData source="{dataList}"/>
+			</mx:dataProvider>
+			<mx:columns>
+				<mx:AdvancedDataGridColumn headerText="Descrição" dataField="descricao"/>
+				<mx:AdvancedDataGridColumn headerText="Status" dataField="status">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:HBox verticalGap="2" horizontalAlign="left" horizontalGap="2">
+								<mx:Image source="{data.statusUrlImage}" width="15" buttonMode="true" height="15"/>
+								<mx:Label text="{data.status}"/>								
+							</mx:HBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:AdvancedDataGridColumn>
+				<mx:AdvancedDataGridColumn headerText="Comentários" dataField="obs"/>
+				<mx:AdvancedDataGridColumn headerText="SMCS" dataField="smcs"/>
+				<mx:AdvancedDataGridColumn headerText="Manutenção" dataField="tipoManutencao"/>
+				<mx:AdvancedDataGridColumn headerText="Fotos">
+					<mx:itemRenderer> 
+						<mx:Component>
+							<mx:VBox verticalGap="2" horizontalAlign="center">
+								<mx:Image source="{data.fotoUrlImage}" width="15" buttonMode="true" height="15" />
+							</mx:VBox>
+						</mx:Component> 
+					</mx:itemRenderer>
+				</mx:AdvancedDataGridColumn>
+			</mx:columns>
+		</mx:AdvancedDataGrid> 
+	</mx:VBox>
+</ModuleTitleWindow>

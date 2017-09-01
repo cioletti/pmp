@@ -1,0 +1,618 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			import bean.ContratoComercialBean;
+			import bean.DataHeaderBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.controls.Label;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.HeaderEvent;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			[Bindable]
+			private var dateHearderList:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var usuarioList:ArrayCollection = new ArrayCollection();
+			[Bindable]
+			private var agObs:PopUpEscolhaAgendamentoObs = null;
+			[Bindable]
+			private var obsAg:PopUpObsAgendamento = null;
+			[Bindable]
+			private var idFuncionario:String;
+			[Bindable]
+			private var nomeFuncionario:String;
+			[Bindable]
+			private var paginaAtual:Number=0;
+			[Bindable]
+			private var totalRegistros:Number;
+			
+			
+			private var dataCorrente:String;
+			private var urlLogin:String;
+			private var usuarioBean:UsuarioBean;
+			private var eventMouse:MouseEvent;
+			private var inicial:Number =  Number(0);
+			private var numRegistros:Number = Number(0)	
+			
+			public function init(urlLogin:String,  usuarioBean:UsuarioBean):void{
+				//				gridOsPendente.addEventListener("IMPRIMIRCONTRATO", openPopupImprimir);
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;						
+				serviceController.findAllHeaderList(null);
+				paginateGrid();				
+				voltarBtn.label = '<<';
+				avancarBtn.label = '>>';
+			}
+			
+			public function paginateGrid():void{
+				inicial =  Number(quantidadeCbx.selectedLabel) * paginaAtual;
+				numRegistros = Number(quantidadeCbx.selectedLabel);	
+				serviceController.findAllAgendamentosPendentes(inicial,numRegistros, tipoAgendamentoCbx.selectedItem.valor, campoPesquisa.text);
+				
+			}
+			
+			
+			private function onResultFindAllHeaderList(event:ResultEvent):void{
+				dateHearderList = ArrayCollection(event.result);
+				this.createDateHeader();
+				serviceController.findAllTecnico(dateHearderList);
+			}
+			private function onResultFindAllAgendamentosPendentes(event:ResultEvent):void{
+				var agendamentoArrayAux:ArrayCollection = ArrayCollection(event.result);
+				gridOsPendente.dataProvider = agendamentoArrayAux;
+				
+				for(var i:int = 0; i <agendamentoArrayAux.length; i++){
+					var agendamentos:AgendamentoBean = AgendamentoBean(agendamentoArrayAux.getItemAt(i));
+					
+					if(!isNaN(agendamentos.totalRegistros)){
+						totalRegistros = agendamentos.totalRegistros;
+						break;
+					}
+				}
+				
+				var numPaginas:int = Math.ceil(totalRegistros / Number(quantidadeCbx.selectedLabel));
+				
+				if(numPaginas > (paginaAtual+1))
+				{					
+					avancarBtn.enabled = true;
+				}
+				else
+				{
+					avancarBtn.enabled = false;
+					voltarBtn.enabled = true;
+				}
+				paginas.removeAllChildren();
+				
+				if(numPaginas > 1){
+					for(var j:int = 0; j < numPaginas;j++){
+						var obj:Object = new Object();
+						obj.numPagina = numPaginas;
+						var numPagina:Label = new Label();
+						numPagina.text = (j+1)+"";
+						obj.pagina = (1+j);
+						numPagina.data = obj;
+						numPagina.addEventListener(MouseEvent.CLICK,clickPage);
+						numPagina.buttonMode = true;
+						paginas.addChild(numPagina);
+						if(paginaAtual == j){
+							numPagina.setStyle("fontWeight", 'bold');
+						}
+					}
+				}else{
+					avancarBtn.enabled = false;
+					voltarBtn.enabled = false;
+					var numPaginaAux:Label = new Label();
+					numPaginaAux.text = 1+"";
+					numPaginaAux.setStyle("fontWeight", 'bold');
+					paginas.addChild(numPaginaAux);
+				}
+			}
+			private function clickPage(event:MouseEvent):void{
+				
+				var numPage:Number = Object(Label(event.currentTarget).data).pagina;
+				paginaAtual = numPage -1;
+				paginateGrid();
+				
+			}
+			
+			private function onResultFindAllTecnico(event:ResultEvent):void{
+				usuarioList = ArrayCollection(event.result);
+				this.createTecnicoLeft();
+			}
+			private function onResultFindAllHeaderNext(event:ResultEvent):void{
+				dataHeader.removeAllChildren();
+				dateHearderList.removeAll();
+				dateHearderList = ArrayCollection(event.result);
+				this.createDateHeader();
+				serviceController.findAllTecnico(dateHearderList);
+			}
+			private function onResultFindAllHeaderPrevious(event:ResultEvent):void{
+				dataHeader.removeAllChildren();
+				dateHearderList.removeAll();
+				dateHearderList = ArrayCollection(event.result);
+				this.createDateHeader();
+				serviceController.findAllTecnico(dateHearderList);
+			}
+			private function createDateHeader():void{
+				for(var i:int=0; i < dateHearderList.length; i++){
+					var header:DataHeaderBean =  dateHearderList.getItemAt(i) as DataHeaderBean;
+					var vbox:VBox = new VBox();
+					vbox.width = 145;
+					vbox.height = 42;
+					var labelDescricaoDate:Label = new Label;
+					labelDescricaoDate.setStyle('color','white');
+					labelDescricaoDate.text = header.dateString;
+					vbox.addChild(labelDescricaoDate);	
+					var labelDate:Label = new Label;
+					labelDate.text = header.descricao;
+					labelDate.setStyle('color','white');
+					vbox.addChild(labelDate);
+					vbox.addChild(labelDescricaoDate);
+					vbox.setStyle("backgroundColor", 0x000000);
+					vbox.setStyle('horizontalAlign','center');
+					dataHeader.addChild(vbox);
+				}
+				
+			}
+			private function clickAgendamento(event:MouseEvent):void{
+				if(this.usuarioBean.siglaPerfil == 'SUPER'){
+					return;
+				}
+				this.eventMouse = event;
+				var numChildren:Number = VBox(event.currentTarget).numChildren;
+				this.idFuncionario = VBox(eventMouse.currentTarget).data.matricula;
+				this.nomeFuncionario = VBox(eventMouse.currentTarget).data.nome;
+				this.dataCorrente = VBox(eventMouse.currentTarget).id;
+				if(numChildren == 0){
+					agObs = new PopUpEscolhaAgendamentoObs();
+					agObs.addEventListener(CloseEvent.CLOSE, removePopUpEscolhaAgObs);
+					PopUpManager.addPopUp(agObs,this,true);
+					PopUpManager.centerPopUp(agObs);
+					agObs.init();
+					
+					//this.openPopupAgendamento( VBox(event.currentTarget).data.matricula, VBox(event.currentTarget).id);
+					
+					//Alert.show(VBox(event.currentTarget).id);
+					//Alert.show(VBox(event.currentTarget).data.matricula);
+				}else{
+					var result:ArrayCollection = new ArrayCollection();
+					for (var i:int = 0; i < numChildren; i++) {
+						var label:Label = Label(VBox(event.currentTarget).getChildAt(i))
+						result.addItem(label.data);	
+						//Alert.show(""+label.data.numOs);
+						//Alert.show(""+label.data.id);
+					}
+					this.openPopupListaAgendamento(result);
+				}
+			}
+			
+			private function removePopUpEscolhaAgObs(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				
+				if(agObs.opcaoAgObs == "Ag"){					
+					openPopupAgendamento (this.nomeFuncionario, idFuncionario, dataCorrente, false);
+					
+				}else if(agObs.opcaoAgObs == "Obs"){
+					openPopUpObservacao ();
+				}else{
+					return;
+				}				
+			}
+			
+			private function openPopUpObservacao ():void{
+				obsAg = new PopUpObsAgendamento();
+				obsAg.addEventListener(CloseEvent.CLOSE, removePopUpObsAgendamento);
+				PopUpManager.addPopUp(obsAg,this,true);
+				PopUpManager.centerPopUp(obsAg)
+				obsAg.init(urlLogin, idFuncionario, dataCorrente);			
+			}
+			
+			private function removePopUpObsAgendamento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllTecnico(dateHearderList);
+				
+			}
+			
+			[Bindable]
+			private var listaAgendamento:ListaOsAgendada = null;
+			private function openPopupListaAgendamento(ag:ArrayCollection):void{
+				listaAgendamento = new ListaOsAgendada();
+				listaAgendamento.addEventListener(CloseEvent.CLOSE, removePopUpListaAgendamento);
+				PopUpManager.addPopUp(listaAgendamento,this,true);
+				PopUpManager.centerPopUp(listaAgendamento)
+				listaAgendamento.init(urlLogin, ag);
+			}
+			private function removePopUpListaAgendamento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(listaAgendamento.opcaoAgObs != null && listaAgendamento.opcaoAgObs == "Ag"){
+					this.openPopupAgendamento(this.nomeFuncionario, idFuncionario, dataCorrente, false);
+					return;
+				}else if(listaAgendamento.opcaoAgObs != null && listaAgendamento.opcaoAgObs == "Obs"){
+					openPopUpObservacao();
+					return;
+				}				
+				if(listaAgendamento.agendamento != null && listaAgendamento.agendamento.numOs == "OBSERVAÇÃO"){
+					openPopUpObservacao ();
+					obsAg.setAgendamento(listaAgendamento.agendamento);
+				}else if(listaAgendamento.agendamento){					
+					this.openPopupAgendamento(this.nomeFuncionario, idFuncionario, dataCorrente, true);
+					da.setAgendamento(listaAgendamento.agendamento);
+				}
+			}
+			
+			private function verificarCredito():void{
+				serviceController.verificarCreditoCliente(AgendamentoBean(gridOsPendente.selectedItem).idContHorasStandard);
+			}
+			
+			private var popupFinanceiro:PopupFinanceiro = null;
+			private function onResultVerificarCreditoCliente(event:ResultEvent):void{
+				if(event.result == null){
+					this.openPopupOsEstimada();
+				}else{
+					popupFinanceiro = new PopupFinanceiro();
+					popupFinanceiro.addEventListener(CloseEvent.CLOSE, removePopUpFinanceiro);
+					PopUpManager.addPopUp(popupFinanceiro,this,true);
+					PopUpManager.centerPopUp(popupFinanceiro)
+					popupFinanceiro.init(this.urlLogin, AgendamentoBean(gridOsPendente.selectedItem));
+				}
+				
+			}
+			
+			private function removePopUpFinanceiro(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+			}
+				
+				
+			[Bindable]
+			private var osEstimada:CriarOsEstimada = null;
+			private var pecasOs:PopupPecasOs = null;
+			private function openPopupOsEstimada():void{
+				if(this.usuarioBean.siglaPerfil == 'SUPER'){
+					return;
+				}
+				if(gridOsPendente.selectedItem != null && (AgendamentoBean(gridOsPendente.selectedItem).numOs == null || AgendamentoBean(gridOsPendente.selectedItem).numOs == ''
+					|| AgendamentoBean(gridOsPendente.selectedItem).codErroOsDbs == '99')){
+					if(AgendamentoBean(gridOsPendente.selectedItem).codErroOsDbs == '99' || AgendamentoBean(gridOsPendente.selectedItem).codErroOsDbs == null
+						|| AgendamentoBean(gridOsPendente.selectedItem).codErroOsDbs == ''){
+						verificaOsFaturada();
+					}
+				}else if(AgendamentoBean(gridOsPendente.selectedItem).codErroDocDbs == '99'){
+					pecasOs = new PopupPecasOs();
+					pecasOs.addEventListener(CloseEvent.CLOSE, removePopUpPecas);
+					PopUpManager.addPopUp(pecasOs,this,true);
+					PopUpManager.centerPopUp(pecasOs)
+					pecasOs.init(urlLogin, (gridOsPendente.selectedItem as AgendamentoBean).idContHorasStandard);
+				}
+			}
+			
+			private function verificaOsFaturada():void{
+				serviceController.verificaOsFaturada(AgendamentoBean(gridOsPendente.selectedItem).idContrato);
+				
+			}
+			
+			
+			private function onResultVerificaOsFaturada(event:ResultEvent):void{
+				if(event.result == true){
+					osEstimada = new CriarOsEstimada();
+					osEstimada.addEventListener(CloseEvent.CLOSE, removePopUpOsEstimada);
+					PopUpManager.addPopUp(osEstimada,this,true);
+					PopUpManager.centerPopUp(osEstimada)
+					osEstimada.init(urlLogin, gridOsPendente.selectedItem as AgendamentoBean, usuarioBean);
+					
+					
+				}else{
+					Alert.show("Não é possivel criar OS de agendamento enquanto a OS do contrato não estiver faturada ou se a mesma não estiver faturada no DBS!", "Alerta");
+				}
+			}
+			
+			private function onResultSendPecasDbs(event:ResultEvent):void{
+				if(event.result == true){
+					Alert.show("Peças reenviadas com sucesso!", "Alerta");
+					serviceController.findAllAgendamentosPendentes(inicial,numRegistros, tipoAgendamentoCbx.selectedItem.valor, campoPesquisa.text);
+					tipoAgendamentoCbx.selectedIndex = 0;
+				}else{
+					Alert.show("Não foi possível reenviar peças!", "Alerta");
+				}
+			}
+			
+			//			private function alertClickHandler(event:CloseEvent):void {	
+			//			 	serviceController.sendPecasDbs(AgendamentoBean(gridOsPendente.selectedItem).idContHorasStandard);
+			//			}
+			
+			private function removePopUpPecas(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(pecasOs.isReenvio){
+					serviceController.findAllAgendamentosPendentes(inicial,numRegistros, tipoAgendamentoCbx.selectedItem.valor, campoPesquisa.text);
+					tipoAgendamentoCbx.selectedIndex = 0;
+				}
+			}
+			private function removePopUpOsEstimada(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllAgendamentosPendentes(inicial,numRegistros, tipoAgendamentoCbx.selectedItem.valor, campoPesquisa.text);
+				tipoAgendamentoCbx.selectedIndex = 0;
+			}
+			
+			
+			[Bindable]
+			private var da:DadosAgendamento = null;
+			private function openPopupAgendamento(nomeFuncionario:String, idFuncionario:String, dataCorrente:String, isEdidt:Boolean):void{
+				da = new DadosAgendamento();
+				da.addEventListener(CloseEvent.CLOSE, removePopUpAgendamento);
+				PopUpManager.addPopUp(da,this,true);
+				PopUpManager.centerPopUp(da)
+				da.init(urlLogin, dateHearderList, idFuncionario, dataCorrente, usuarioBean, this.nomeFuncionario, isEdidt);			
+			}
+			
+			private function removePopUpAgendamento(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(da.isLoadData == true){
+					//ProgressBarHelper.openProgressBar(this);
+					serviceController.findAllAgendamentosPendentes(inicial,numRegistros, tipoAgendamentoCbx.selectedItem.valor, campoPesquisa.text);
+				}
+				if(da.usuarioList == null){
+					Alert.show("Não foi possível efetuar agendamento, pois, a data de agendamento pode ser menor que a data atual!\n" +
+						"Verifique também se o contrato é Pré-Pago e se a data de faturamento da OS foi adicionada e se o status da mesma é INV no DBS!", "Alerta");
+					return;
+				}
+				if(da.usuarioList.length > 0){
+					this.usuarioList = da.usuarioList;
+					this.createTecnicoLeft();
+				}
+			}
+			
+			private function createTecnicoLeft():void{
+				tecnicoVbox.removeAllChildren();
+				for(var i:int=0; i < usuarioList.length; i++){
+					var usu:UsuarioBean =  usuarioList.getItemAt(i) as UsuarioBean;
+					var hbox:HBox = new HBox();
+					hbox.percentWidth = 140;
+					hbox.height = 42;
+					
+					var hboxLabel:HBox = new HBox();
+					var label:Label = new Label;
+					label.setStyle('color','white');
+					label.text = usu.nome;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.width = 220;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					for(var j:int = 0; j < usu.agendamentoList.length; j++){
+						var hboxAgendamento:VBox = new VBox();
+						hboxAgendamento.width = 145;
+						hboxAgendamento.height = 42;
+						hboxAgendamento.setStyle("backgroundColor", 'green');
+						//hboxAgendamento.setStyle('horizontalAlign','center');
+						hboxAgendamento.setStyle("paddingLeft", 8);
+						hboxAgendamento.addEventListener(MouseEvent.DOUBLE_CLICK,clickAgendamento); 
+						hboxAgendamento.doubleClickEnabled = true;
+						hboxAgendamento.id = DataHeaderBean(dateHearderList.getItemAt(j)).dateString;
+						hboxAgendamento.data = usu;
+						var externo:AgendamentoBean = usu.agendamentoList.getItemAt(j) as AgendamentoBean;
+						
+						for(var k:int= 0; k < externo.agendamentoList.length; k++){
+							var interno:AgendamentoBean = externo.agendamentoList.getItemAt(k) as AgendamentoBean;
+							
+							var labelOs:Label = new Label();
+							if(interno.numOs != 'OBSERVAÇÃO'){
+								labelOs.text = interno.numOs +"-"+interno.razaoSocial.substr(0, (interno.razaoSocial.length > 12)?12:interno.razaoSocial.length);
+								labelOs.toolTip = interno.razaoSocial+" - "+interno.horasRevisao+"\nContato:"+interno.contato+"\nTelefone:"+interno.telefone+"\nModelo:"+interno.modelo+"\nSérie:"+interno.numSerie+"\nData Agendamento:"+interno.dataAgendamento;
+							}else{
+								labelOs.text = interno.numOs;
+								labelOs.toolTip = interno.obs;
+							}
+							
+							labelOs.setStyle("backgroundColor", 0x000000);
+							labelOs.setStyle("fontWeight", 'bold');
+							labelOs.setStyle("fontSize", 9);
+							if(interno.siglaStatus == 'RT' || interno.siglaStatus == 'CN'){
+								labelOs.setStyle("color", '#ff0000');
+							}else if(interno.siglaStatus == 'ET'){
+								labelOs.setStyle("color", '#e88711');
+							}else if(interno.siglaStatus == 'EA'){
+								labelOs.setStyle("color", 'yellow');
+							}else if(interno.siglaStatus == 'AT'){
+								labelOs.setStyle("color", '#FF8C00');
+							}else if(interno.siglaStatus == 'FIN'){
+								labelOs.setStyle("color", '#00ff00');
+							}else if(interno.siglaStatus == 'CA'){
+								labelOs.setStyle("color", '#ff0000');
+							}else if(interno.siglaStatus == 'OBS'){
+								labelOs.setStyle("color", '#FFFF00');
+							}
+							if(interno.dataFaturamento != null && interno.dataFaturamento != ""){
+								labelOs.setStyle("color", '#00BFFF');
+							} 
+							labelOs.data = interno;
+							hboxAgendamento.addChild(labelOs);
+							if(interno.siglaStatus != 'FIN'){
+								hboxAgendamento.setStyle("backgroundColor", '#333333');
+							}
+							
+						}
+						
+						hbox.addChild(hboxAgendamento);
+					}
+					
+					tecnicoVbox.addChild(hbox);
+				}
+				
+			}
+			
+			
+			
+			
+			private function findAllHeaderNext():void{
+				var header:DataHeaderBean = dateHearderList.getItemAt(0) as DataHeaderBean;
+				serviceController.findAllHeaderNext(header.dateString);
+			}
+			private function findAllHeaderPrevious():void{
+				var header:DataHeaderBean = dateHearderList.getItemAt(0) as DataHeaderBean;
+				serviceController.findAllHeaderPrevious(header.dateString);
+			}
+			private function findDataExataAgenda():void{
+				dataHeader.removeAllChildren();
+				serviceController.findAllHeaderList(dataExataAgenda.text);
+			}
+			
+			public function voltarBtn_clickHandler(event:MouseEvent):void
+			{
+				paginaAtual -= 1;
+				paginateGrid()
+			}
+			
+			public function avancarBtn_clickHandler(event:MouseEvent):void
+			{
+				paginaAtual += 1;
+				paginateGrid()
+			}
+			
+			
+			public function quantidadeCbx_changeHandler(event:ListEvent):void
+			{
+				paginaAtual = 0;
+				paginateGrid()
+				
+			}
+			
+			private function mostrarToolTip(item: Object):String{
+				var str:String = "";
+				
+				if ((item != null) && (item.obsOs != null) && (item.obsOs != "")) 
+				{
+					str = item.obsOs + "\n";
+				}
+				return str;
+			}
+			
+			
+			
+			protected function tipoAgendamentoCbx_changeHandler(event:ListEvent):void
+			{
+				paginaAtual = 0;
+				paginateGrid();
+			}
+			protected function pesquisarAgendamento():void{
+				if(campoPesquisa.text != ""){
+					tipoAgendamentoCbx.selectedIndex = 0;
+					paginateGrid();
+				}else{
+					Alert.show("Insira o texto que vai ser pesquisado!", "Alerta");					
+				}
+				
+			}
+			//private var popupEnviar:PopupEnviarEmailProposta = new PopupEnviarEmailProposta();
+			//			public function openPopupImprimir(ev: Event):void
+			//			{	
+			//				popupEnviar.addEventListener(CloseEvent.CLOSE, popup_CloseHandler);
+			//				PopUpManager.addPopUp(popupEnviar,this,true);
+			//				PopUpManager.centerPopUp(popupEnviar)
+			//				popupEnviar.init(AgendamentoBean(gridOsPendente.selectedItem).emailContato, AgendamentoBean(gridOsPendente.selectedItem).idContrato, this.urlLogin,AgendamentoBean(gridOsPendente.selectedItem).idContHorasStandard, AgendamentoBean(gridOsPendente.selectedItem).horasRevisao);
+			//				
+			//			}
+			//			private function popup_CloseHandler(event:CloseEvent):void{
+			//				event.target.removeEventListener(CloseEvent.CLOSE, popup_CloseHandler);
+			//				PopUpManager.removePopUp(popupEnviar);
+			//			}
+			
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="tipoAgendamentoColl">
+		<mx:Object label="Todas" valor="T"/>
+		<mx:Object label="Todas Agendadas" valor="TA"/>
+		<mx:Object label="Todas não Agendadas" valor="TNA"/>
+	</mx:ArrayCollection>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllHeaderList" result="onResultFindAllHeaderList(event)" />
+		<mx:method name="findAllTecnico" result="onResultFindAllTecnico(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllHeaderNext" result="onResultFindAllHeaderNext(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllHeaderPrevious" result="onResultFindAllHeaderPrevious(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllAgendamentosPendentes" result="onResultFindAllAgendamentosPendentes(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="sendPecasDbs" result="onResultSendPecasDbs(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificaOsFaturada" result="onResultVerificaOsFaturada(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="verificarCreditoCliente" result="onResultVerificarCreditoCliente(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:HBox x="238" y="16" width="1160" id="dataHeader"  >
+	</mx:HBox>
+	<mx:HBox x="10" y="65" height="247" width="1310" >
+		<mx:VBox height="247" id="tecnicoVbox" width="1310" verticalScrollPolicy="auto">
+		</mx:VBox>
+	</mx:HBox>
+	<mx:Image x="125" y="10" source="img/previous.png" width="32" height="36" buttonMode="true" click="findAllHeaderPrevious()"/>
+	<mx:Image x="165" y="10" source="img/next.png" width="32" height="36" buttonMode="true" click="findAllHeaderNext()"/>
+	<mx:DateField id="dataExataAgenda" x="21" y="16" change="findDataExataAgenda()"  formatString="DD/MM/YYYY"  dayNames="['D','S','T','Q','Q','S','S']"
+				  monthNames="['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']"/>
+	<mx:VBox height="100%" x="10" y="332" width="1308">
+		<mx:HBox width="100%" horizontalAlign="center" borderStyle="solid" cornerRadius="5" borderColor="#C6DEFF" height="28">
+			<mx:Label text="Registros por página"/>
+			<mx:ComboBox id="quantidadeCbx" change="quantidadeCbx_changeHandler(event)">
+				<mx:dataProvider>
+					<mx:Array>
+						<mx:Object label="25"/>
+						<mx:Object label="50"/>
+						<mx:Object label="95"/>
+					</mx:Array>
+				</mx:dataProvider>
+			</mx:ComboBox>
+			<mx:ComboBox id="tipoAgendamentoCbx" change="tipoAgendamentoCbx_changeHandler(event)" dataProvider="{tipoAgendamentoColl}" labelField="label">
+			</mx:ComboBox>
+			<mx:Label text="{totalRegistros} encontrados."/>
+			<mx:TextInput id="campoPesquisa" />
+			<mx:Button label="Pesquisar" click="pesquisarAgendamento()" toolTip="Insira o Nome do Cliente, Modelo, Nº do Contrato ou a Serie."/>
+		</mx:HBox>
+		<mx:DataGrid id="gridOsPendente" width="100%" height="100%" dataTipFunction="mostrarToolTip" doubleClickEnabled="true" doubleClick="verificarCredito()">
+			<mx:columns>
+				<mx:DataGridColumn headerText="Cliente" dataField="razaoSocial" showDataTips="true" width="250"/>
+				<mx:DataGridColumn headerText="Contrato" dataField="numContrato" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Número&#13;OS" dataField="numOs" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Doc." dataField="numDoc" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Msg." dataField="msg" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Modelo" dataField="modelo" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Série" dataField="numSerie" showDataTips="true"/>
+				
+				<mx:DataGridColumn headerText="Horímetro&#13;Ultima&#13;Revisão" dataField="horimetroUltimaRevisao" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Horímetro&#13;Próxima&#13;Revisão" dataField="horimetroProximaRevisao" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Horímetro&#13;Faltante" dataField="horimetroFaltantes" showDataTips="true"/>
+				
+				
+				<mx:DataGridColumn headerText="Horímetro&#13;Atual" dataField="horimetro" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Horas&#13;Pendentes" dataField="horasPendentes" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Horas&#13;Revisão" dataField="horasRevisao" showDataTips="true"/>
+				<!--mx:DataGridColumn headerText="Dias&#13;Próxima&#13;Revisão&#13;Plus" dataField="diasProximaRevisao" showDataTips="true"/>
+				<mx:DataGridColumn headerText="Dias&#13;Pr. Revisão&#13;Gerador" dataField="mediaDiasProximaRevisao"/-->
+				<mx:DataGridColumn headerText="Status" dataField="statusAgendamento" showDataTips="true" width="200"/>
+				<!--mx:DataGridColumn headerText="Imprimir">
+				<mx:itemRenderer> 
+				<mx:Component>
+				<mx:VBox verticalGap="2" horizontalAlign="center">
+				<mx:Image source="img/contrato.png" width="15" visible="{(data.siglaTipoContrato == 'VPG')?false:true}" buttonMode="true" height="15" click="{dispatchEvent(new Event('IMPRIMIRCONTRATO', true))}"/>
+				</mx:VBox>
+				</mx:Component> 
+				</mx:itemRenderer>
+				</mx:DataGridColumn-->
+				
+				<!--mx:DataGridColumn headerText="At. Horímetro" dataField="dataAtualizacaoHorimetro" showDataTips="true"/-->
+				<!--mx:DataGridColumn headerText="Local" dataField="local" showDataTips="true"/-->
+			</mx:columns>
+		</mx:DataGrid>
+		<mx:HBox x="10" y="620" width="100%" horizontalAlign="center" borderStyle="solid" cornerRadius="5" borderColor="#C6DEFF">
+			<mx:Button label="" id="voltarBtn" enabled="{paginaAtual!=0}" click="voltarBtn_clickHandler(event)"/>
+			<mx:HBox id="paginas">
+			</mx:HBox>
+			<mx:Button label="" id="avancarBtn" click="avancarBtn_clickHandler(event)"/>
+		</mx:HBox>
+	</mx:VBox>
+	
+</mx:Canvas>

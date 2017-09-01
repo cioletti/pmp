@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Popup Financeiro" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute"  xmlns:control="br.com.thinklab.util.control.*">
+
+	<mx:Script>
+		<![CDATA[
+			import bean.AgendamentoBean;
+			import bean.CondicaoPagamentoBean;
+			import bean.FinanceiroBean;
+			import bean.StatusOsBean;
+			import bean.UsuarioBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private var urlLogin:String;
+			private var agendamentoBean:AgendamentoBean = new AgendamentoBean();
+			private var usuarioBean:UsuarioBean;
+			private var descricao:ArrayCollection = new ArrayCollection();
+			private var uploadFile: FileReference;
+			private var filtro:FileFilter = new FileFilter("Selecione um  Arquivo(*.xml;*.doc;*.docx;*.xls;*.xlsx;*.pdf)", "*.xml;*.doc;*.docx;*.xls;*.xlsx;*.pdf;");
+			public function init(urlLogin:String, agendamentoBean:AgendamentoBean):void{
+				this.urlLogin = urlLogin;
+				this.usuarioBean = usuarioBean;
+				this.agendamentoBean = agendamentoBean;
+				serviceController.findAllStatus();
+				//serviceController.findObsFinanceiro(this.agendamentoBean.idContHorasStandard);
+				gridArquivo.addEventListener("REMOVERARQUIVO", removerArquivo);
+				gridArquivo.addEventListener("VISUALIZARARQUIVO", visualizarArquivo);
+				serviceController.findAllArquivos(this.agendamentoBean.idContHorasStandard);
+				//serviceController.findObsFinanceiro(this.agendamentoBean.idContHorasStandard);
+				serviceController.findAllCondicaoPagamento();
+			}
+			
+			private function onResultFindAllStatus(event:ResultEvent):void{
+				statusFinanceiroCbx.dataProvider = ArrayCollection(event.result);
+			}
+			protected function envFinanceiroBtn_clickHandler(event:MouseEvent):void{
+				if(statusFinanceiroCbx.selectedIndex == -1){
+					Alert.show("O campo status é obrigatório!","Alerta");
+					return;
+				}
+				if(observacao.text == "" || observacao.text == null){
+					Alert.show("O campo observação é obrigatório!","Alerta");
+					return;
+				}
+				if(valor.text == "" || valor.text == null){
+					Alert.show("O campo valor é obrigatório!","Alerta");
+					return;
+				}
+				
+				if(condicaoPagamentoCbx.selectedIndex == -1){
+					Alert.show("O campo condição de pagamento obrigatório!", "Alerta");
+					return;
+				}
+				
+				if(motivoRequisicaoCbx.selectedIndex == -1){
+					Alert.show("O campo motivo requisição obrigatório!", "Alerta");
+					return;
+				}
+				
+				
+				var finBean:FinanceiroBean = new FinanceiroBean();
+				finBean.observacao = observacao.text;
+				finBean.vlrEstimado = valor.text;
+				finBean.status = StatusOsBean(statusFinanceiroCbx.selectedItem).sigla;
+				finBean.idContrato = this.agendamentoBean.idContrato;
+				finBean.idContHorasStandard = this.agendamentoBean.idContHorasStandard;
+				finBean.depositoCliente = vlrDepositado.text;
+				finBean.siglaCondicaoPagamento = CondicaoPagamentoBean(condicaoPagamentoCbx.selectedItem).sigla;
+				finBean.siglaMotivoRequisicao = motivoRequisicaoCbx.selectedItem.sigla;
+				serviceController.enviarFinanceiro(finBean);
+			}
+			private function onResulEnviarFinanceiro(event:ResultEvent):void{
+				if(Boolean(event.result) == false){
+					Alert.show("Não foi possível enviar para o financeiro!","Alerta");
+					return;
+				}
+				Alert.show("Solicitação de crédito enviada para o financeiro!","Alerta");
+				this.close(null);
+				return;
+			}
+			private function onResultFindObsFinanceiro(event:ResultEvent):void{
+				var fin:FinanceiroBean = FinanceiroBean(event.result);
+				if(fin != null){
+					valor.text = fin.vlrEstimado;
+					observacao.text = fin.observacao;
+					observacaoFinanceiro.text = fin.observacaoLiberacao;
+					this.selectedStatus(fin);
+					funcFinLabel.text = fin.funcionarioLiberacao;
+					dataRejLabel.text = fin.dataRejeicao;
+					valorManutencaoStdText.text = fin.valorManutencaoStd;
+					
+					
+					vlrDepositado.text = FinanceiroBean(event.result).depositoCliente;
+					this.selectedCP(FinanceiroBean(event.result));
+					this.selectedMR(FinanceiroBean(event.result));
+					if(fin.status == 'AFI'){
+						envFinanceiroBtn.visible = false;
+						anexarFinBtn.visible = false;
+					}
+					
+				}
+			}
+			
+			private function selectedMR(fin:FinanceiroBean):void{
+				var mrList:ArrayCollection = ArrayCollection(motivoRequisicaoCbx.dataProvider);
+				for(var i:int=0; i < mrList.length; i++){
+					var mr:Object = mrList.getItemAt(i);
+					if(mr.sigla == fin.siglaMotivoRequisicao){
+						motivoRequisicaoCbx.selectedIndex = i;
+						//this.condicaoPagamentoPecasCbx_changeHandler(null);
+						break;
+					}
+				}
+			}
+			
+			private function selectedCP(fin:FinanceiroBean):void{
+				var cppList:ArrayCollection = ArrayCollection(condicaoPagamentoCbx.dataProvider);
+				for(var i:int=0; i < cppList.length; i++){
+					var cp:CondicaoPagamentoBean = CondicaoPagamentoBean(cppList.getItemAt(i));
+					if(cp.sigla == fin.siglaCondicaoPagamento){
+						condicaoPagamentoCbx.selectedIndex = i;
+						//this.condicaoPagamentoPecasCbx_changeHandler(null);
+						break;
+					}
+				}
+			}
+			
+			private function selectedStatus(fin:FinanceiroBean):void{
+				var statusList:ArrayCollection = ArrayCollection(statusFinanceiroCbx.dataProvider);
+				for(var i:int=0; i < statusList.length; i++){
+					var s:StatusOsBean = StatusOsBean(statusList.getItemAt(i));
+					if(s.id == fin.idStatusFinanceiro){
+						statusFinanceiroCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			private function removerArquivo(ev: Event): void{
+				Alert.yesLabel = "Sim";
+				Alert.noLabel = "Não";
+				Alert.show("Deseja realmente excluir anexo?", "Alerta", 3, this, alertClickHandler);
+			}
+			
+			private function alertClickHandler(event:CloseEvent):void {
+				if (event.detail==Alert.YES) {
+					var nomeArquivo: String;
+					nomeArquivo = String(gridArquivo.selectedItem);
+					serviceController.removerArquivoFinanceiro(this.agendamentoBean.idContHorasStandard, nomeArquivo);	
+				}
+			}
+			
+			
+			protected function anexarArquivo(event:MouseEvent):void
+			{
+				/* Inicializa o FileReference a adicinar os Listeners */
+				uploadFile = new FileReference();
+				uploadFile.browse([filtro]);
+				uploadFile.addEventListener(Event.SELECT, tratarArquivoSelecionado);
+				uploadFile.addEventListener(Event.COMPLETE, tratarArquivo);
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivo(event:Event):void {
+				/* Pega a referencia do FileReference */
+				uploadFile = event.currentTarget as FileReference;
+				
+				/* Variavel para armazenar o ByteArray */
+				var data:ByteArray = new ByteArray();
+				
+				/* 'readBytes' é responsavel por ler logicamente os dados do FileReference
+				* e repassar o valor do ByteArray do arquivo para a variavel armazenadora 'DATA' */
+				uploadFile.data.readBytes(data, 0, uploadFile.data.length);
+				
+				serviceController.fazerUploadEmDiretorioFinanceiro(this.agendamentoBean.idContHorasStandard, data, uploadFile.name);
+			}
+			
+			/**
+			 * @private
+			 * Exibe a mensagem ao usuario informando que o Upload foi realizado com sucesso.
+			 */
+			private function uploadSucesso(event:ResultEvent):void {
+				if(Boolean(event.result)){
+					serviceController.findAllArquivos(this.agendamentoBean.idContHorasStandard);
+					Alert.show("Arquivo anexado com sucesso.", "Sucesso!");
+					return;
+				}
+				Alert.show("Ocorreu um erro ao anexar arquivo!", "Alerta!");
+			}
+			
+			/**
+			 * @private
+			 * Chamado quando o usuario selecinar o arquivo na popup.
+			 */
+			private function tratarArquivoSelecionado(event:Event):void {
+				/* Este metodo LOAD, foi implementado na versao do FP 10,
+				* é graças a ele que conseguimos recuperar o ByteArray e enviar para o Server */
+				uploadFile.load();
+			}
+			
+			private function onResultRemoverArquivoFinanceiro(event: ResultEvent): void{
+				if(Boolean(event.result) == true){
+					serviceController.findAllArquivos(this.agendamentoBean.idContHorasStandard);
+					Alert.show("Anexo excluído com sucesso.","Sucesso!");
+				}else{
+					Alert.show("Ocorreu um erro ao excluir anexo!","Alerta!");
+				}
+			}
+			private function onResultFindAllArquivos(event: ResultEvent): void{
+				gridArquivo.dataProvider = ArrayCollection(event.result);
+				
+				//serviceController.getUrlReport();
+			}
+			
+			private function visualizarArquivo(ev: Event): void{
+				var uv:URLVariables = new URLVariables();
+				uv.pastaArquivos = this.agendamentoBean.idContHorasStandard;				
+				uv.descricaoArquivo = String(gridArquivo.selectedItem);
+				
+				var url:URLRequest = new URLRequest("ArquivoFinanceiro");
+				url.method = "POST";
+				url.data = uv;
+				navigateToURL(url,"_blank");
+			}
+			private function onResultFindAllCondicaoPagamento(event:ResultEvent):void{
+				condicaoPagamentoCbx.dataProvider = ArrayCollection(event.result);
+				serviceController.findObsFinanceiro(this.agendamentoBean.idContHorasStandard);
+			}
+			
+			private var popupCdPg:PopupCondicaoPagamento;
+			protected function button1_clickHandler(event:MouseEvent):void
+			{
+				popupCdPg = new PopupCondicaoPagamento();
+				popupCdPg.addEventListener(CloseEvent.CLOSE, removeCP);
+				PopUpManager.addPopUp(popupCdPg,this,true);
+				PopUpManager.centerPopUp(popupCdPg);
+				
+				popupCdPg.init(this.urlLogin);
+			}
+			
+			private function removeCP(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				if(popupCdPg.cp != null){
+					this.selectedCPP();
+				}
+			}
+			
+			private function selectedCPP():void{
+				var cppList:ArrayCollection = ArrayCollection(condicaoPagamentoCbx.dataProvider);
+				for(var i:int=0; i < cppList.length; i++){
+					var cp:CondicaoPagamentoBean = CondicaoPagamentoBean(cppList.getItemAt(i));
+					if(popupCdPg.cp.sigla == cp.sigla){
+						condicaoPagamentoCbx.selectedIndex = i;
+						//this.condicaoPagamentoPecasCbx_changeHandler(null);
+						break;
+					}
+				}
+			}
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="motivorequisicaoColl">
+		<mx:Object descricao="Solicitar crédito à vista" sigla="SCA"/>
+		<mx:Object descricao="Solicitar credito PRÉ-PAGO" sigla="SCP"/>
+		<mx:Object descricao="Solicitar credito Concessão" sigla="SCC"/>
+		<mx:Object descricao="Solicitar credito Valor Embutido na máquina" sigla="SCE"/>
+		<mx:Object descricao="Solicitar credito Padrão" sigla="SCP"/>
+	</mx:ArrayCollection>
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="ProgressBarHelper.erro(event, urlLogin);ProgressBarHelper.removeProgressBar()">
+		<mx:method name="enviarFinanceiro" result="onResulEnviarFinanceiro(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllStatus" result="onResultFindAllStatus(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findObsFinanceiro" result="onResultFindObsFinanceiro(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="removerArquivoFinanceiro" result="onResultRemoverArquivoFinanceiro(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllArquivos" result="onResultFindAllArquivos(event);ProgressBarHelper.removeProgressBar()"/>	
+		<mx:method name="fazerUploadEmDiretorioFinanceiro" result="uploadSucesso(event);ProgressBarHelper.removeProgressBar()"/>
+		<mx:method name="findAllCondicaoPagamento" result="onResultFindAllCondicaoPagamento(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+<mx:FormItem label="Observação" required="true" x="30.75" y="64" width="344.5" height="147">
+	<mx:TextInput id="observacao" height="100%" width="100%" />
+</mx:FormItem>
+	<mx:Button label="Enviar " x="328" y="337" id="envFinanceiroBtn" click="envFinanceiroBtn_clickHandler(event)"/>
+	<mx:FormItem x="255.75" y="23" required="true" label="Status" width="260.5" height="22">
+	<mx:ComboBox x="145.5" y="35" labelField="descricao" selectedIndex="-1" enabled="false" id="statusFinanceiroCbx"></mx:ComboBox>
+		</mx:FormItem>
+	<mx:FormItem label="Valor" required="true" x="124.25" y="244" width="206.5" height="26">
+		<control:DecimalInput id="valor"  height="26" width="141" precision="2" currencyFormat="br" useThousandsSeparator="true" />
+	</mx:FormItem>
+	<mx:FormItem label="Observação financeiro" required="false" width="344.5" height="147" x="396.75" y="64">
+		<mx:TextInput id="observacaoFinanceiro" height="100%" width="100%" />
+	</mx:FormItem>
+	<mx:Label text="Responsável  Financeiro:" fontWeight="bold" x="233.25" y="374"/>
+	<mx:Label id="funcFinLabel" fontWeight="bold" x="387.25" y="374" width="374.75"/>
+	<mx:Label id="valorManutencaoStdText" fontWeight="bold" x="169.5" y="219" width="374.75"/>
+	<mx:Label id="dataRejLabel" fontWeight="bold" x="387.25" y="395" width="374.75"/>
+	<mx:Label text="Data Rejeição:" fontWeight="bold" x="290.25" y="395"/>
+	<mx:DataGrid id="gridArquivo" height="107" width="100%" y="451" x="0">
+		<mx:columns>
+			<mx:DataGridColumn dataField="" id="anexo" headerText="Arquivos" textAlign="left" sortable="false"/>
+			<mx:DataGridColumn headerText="Ação" textAlign="center" width="100" sortable="false">
+				<mx:itemRenderer> 
+					<mx:Component>
+						<mx:HBox verticalGap="2" horizontalAlign="center">
+							<mx:Image source="img/remover.png" width="15" height="15" click="{dispatchEvent(new Event('REMOVERARQUIVO', true))}" toolTip="Remover Arquivo"/>
+							<mx:Image source="img/download.png" click="{dispatchEvent(new Event('VISUALIZARARQUIVO', true))}" toolTip="Visualizar Anexo"/>
+						</mx:HBox>
+					</mx:Component> 
+				</mx:itemRenderer>
+			</mx:DataGridColumn>		
+			
+		</mx:columns>
+	</mx:DataGrid>
+	<mx:Button label="Anexar Arquivo" x="328" y="421" id="anexarFinBtn" click="anexarArquivo(event)"/>
+	<mx:Label text="Valor manutenção STD:" fontWeight="bold" x="30.75" y="219"/>
+	<mx:Label text="Valor Depositado" x="61.5"  y="278"/>
+	<control:DecimalInput editable="true" x="169.5"  id="vlrDepositado" width="93" maxChars="20"  precision="2" currencyFormat="br" useThousandsSeparator="true" y="277"/>
+	<mx:Form x="355" y="245">
+	<mx:FormItem label="Cond. Pag." required="true"  x="32" y="259">
+		<mx:HBox>
+			<mx:ComboBox  id="condicaoPagamentoCbx" selectedIndex="-1"  labelField="descricao" prompt="Selecione" />
+			<mx:Button label="ADD" click="button1_clickHandler(event)"/>	
+		</mx:HBox>
+	</mx:FormItem>
+	<mx:FormItem label="Motivo Requisição" required="true"  x="32" y="287">
+			<mx:ComboBox  id="motivoRequisicaoCbx" dataProvider="{motivorequisicaoColl}" selectedIndex="-1"  labelField="descricao" prompt="Selecione" />
+	</mx:FormItem>
+	</mx:Form>
+</util:ModuleTitleWindow>

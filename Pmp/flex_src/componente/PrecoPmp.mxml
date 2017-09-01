@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Preço manutenções" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="400" height="300">
+	<mx:DataGrid id="gridPrecos" x="0" y="0" height="267" width="372">
+		<mx:columns>
+			<mx:DataGridColumn headerText="Parcelas" dataField="parcela"/>
+			<mx:DataGridColumn headerText="Valor" dataField="preco"/>
+		</mx:columns>
+	</mx:DataGrid>
+	
+</util:ModuleTitleWindow>

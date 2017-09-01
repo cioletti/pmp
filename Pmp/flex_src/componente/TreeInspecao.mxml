@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" width="100%" height="100%">
+	<mx:Script>
+		<![CDATA[
+			import bean.FamiliaBean;
+			import bean.MaquinaPlBean;
+			import bean.TreeBean;
+			import bean.UsuarioBean;
+			
+			import mx.binding.utils.BindingUtils;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.IFlexDisplayObject;
+			import mx.events.CloseEvent;
+			import mx.events.ListEvent;
+			import mx.events.TreeEvent;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			[Bindable]
+			private var listPaiTree:ArrayCollection = new ArrayCollection();
+			private var urlLogin:String;
+			private var tipoTree:String = 'PM'
+			public function init(urlLogin:String, usuario:UsuarioBean):void{
+				this.urlLogin = urlLogin;
+				
+				if(!usuario.isAdm){
+					frmEditArv.includeInLayout = false;
+					frmEditArv.visible = false;
+					btnSalvar.visible = false;
+					btnSalvar.includeInLayout = false;
+				}
+				
+				serviceController.findAllFamilia();
+				serviceController.findAllTipoPm();
+			}
+			private function onResultFindAllTree(event:ResultEvent):void{
+				myTree.dataProvider = event.result;
+			}
+			private function onResultFindAllFamilia(event:ResultEvent):void{
+				familiaCbx.dataProvider = event.result;
+			}
+			private function onResultFindAllTipoPm(event:ResultEvent):void{
+				tipoManutencaoCbx.dataProvider = event.result;
+			}
+			private function onResultRemoverNodo(event:ResultEvent):void{
+				if(event.result as Boolean == false){
+					Alert.show("Não foi possível remover nodo!", "Alerta");
+					return;
+				} 
+				var tree:TreeBean = TreeBean(myTree.selectedItem);
+				var treeParent:TreeBean = myTree.getParentItem(myTree.selectedItem);
+				for(var i:int = 0; i < treeParent.children.length; i++){
+					var aux:TreeBean = treeParent.children.getItemAt(i) as TreeBean;
+					if(aux.descricao == tree.descricao){
+						treeParent.children.removeItemAt(i);
+						treeParent.children.refresh();
+						myTree.selectedIndex = -1;
+						this.treeCbx_changeHandler(null);
+						return;
+					}
+				}
+			}
+
+			private function onResultFindAllTreePai(event:ResultEvent):void{
+
+				treeCbx.dataProvider = null;
+				listPaiTree.removeAll();
+				listPaiTree.addAll(event.result as ArrayCollection);
+				treeCbx.dataProvider = listPaiTree;
+				myTree.openItems = listPaiTree;
+			
+			}
+
+			protected function treeCbx_changeHandler(event:ListEvent):void
+			{
+				if(TreeBean(treeCbx.selectedItem).idArv > 0){
+					serviceController.findAllTree(TreeBean(treeCbx.selectedItem).idArv);
+					imgClonar.visible = true;
+				}else{
+					myTree.dataProvider = null;
+					addItemHbox.includeInLayout = false;
+					addItemHbox.visible = false;
+					imgClonar.visible = false;
+				}
+			}
+			private function addItem():void{
+				addItemHbox.includeInLayout = true;
+				addItemHbox.visible = true;
+				var treeAux:TreeBean = myTree.getParentItem(myTree.selectedItem);
+				if( treeAux != null){
+					if(myTree.getParentItem(treeAux) != null){
+						Alert.show("Não é permitido inserir uma árvore com mais de três níveis!", "Alerta");
+						return;
+					}
+				}
+				if(descricaoText.text == '' || tipoManutencaoCbx.selectedIndex == -1){
+					Alert.show("O campo nodo e manutenção são obrigatórios!", "Alerta");
+					return;
+				}
+				if(myTree.selectedItem == null){
+					Alert.show("Para adicionar um item na árvore é necessário selecionar um pai!", "Alerta");
+					return;
+				}
+				
+				if(tipoManutencaoCbx.selectedItem.valor != 'PAI' && smcsText.text == ''){
+					Alert.show("Preencha o campo SMCS!", "Alerta");
+					return;
+				}
+				
+				var tree:TreeBean = TreeBean(myTree.selectedItem);
+			
+				var beanTree:TreeBean = new TreeBean();
+				beanTree.idPai = tree.idArv;
+				beanTree.idPaiRoot = tree.idPaiRoot;
+				beanTree.descricao = descricaoText.text.toUpperCase();
+				beanTree.sos = (sosChb.selected)?'S':'N';
+				beanTree.smcs = smcsText.text;
+				beanTree.tipoManutencao = (tipoManutencaoCbx.selectedItem.valor as String);
+				if(tree.children == null){
+					tree.children = new ArrayCollection();
+				}
+						   
+				tree.children.addItem(beanTree);
+				myTree.invalidateList();
+				myTree.invalidateDisplayList();
+			//	myTree.openItems = TreeBean(myTree.selectedItem);
+				
+			}
+			private function removerItem():void{
+				var tree:TreeBean = TreeBean(myTree.selectedItem);
+				var treeParent:TreeBean = myTree.getParentItem(myTree.selectedItem);
+				if(treeParent != null){
+					if(!isNaN(tree.idArv) && tree.idArv > 0){
+						novo_clickHandler(null);
+						serviceController.removerNodo(tree.idArv);
+						return;
+					}
+					for(var i:int = 0; i < treeParent.children.length; i++){
+						var aux:TreeBean = treeParent.children.getItemAt(i) as TreeBean;
+						if(aux.descricao == tree.descricao){
+							treeParent.children.removeItemAt(i);
+							treeParent.children.refresh();
+							return;
+						}
+					}
+				}else{
+					Alert.show("Não é permitido excluir a raiz da árvore!", "Alerta");
+					return;
+				}
+				
+				myTree.invalidateList();
+				myTree.invalidateDisplayList();
+			}
+			private function onClickTree():void{
+				addItemHbox.includeInLayout = true;
+				addItemHbox.visible = true;
+				var treeBean:TreeBean = myTree.selectedItem as TreeBean;
+				descricaoText.text = treeBean.descricao;
+				this.selectedTipoManutencao(treeBean);
+				sosChb.selected = (treeBean.sos == 'S')?true:false;
+				smcsText.text = treeBean.smcs;
+				editar.includeInLayout = true;
+				editar.visible = true;
+				add.includeInLayout = false;
+				add.visible = false;
+				
+				
+			}
+			protected function editar_clickHandler(event:MouseEvent):void
+			{
+				if(tipoManutencaoCbx.selectedIndex == -1){
+					Alert.show("O campo de manutenção é obrigatório!", "Alerta");
+					return;
+				}
+				if(descricaoText.text == ''){
+					Alert.show("O campo nodo é obrigatório!", "Alerta");
+					return;
+				}
+				if(tipoManutencaoCbx.selectedItem.valor != 'PAI' && smcsText.text == ''){
+					Alert.show("Preencha o campo SMCS!", "Alerta");
+					return;
+				}
+				var treeBean:TreeBean = myTree.selectedItem as TreeBean;
+				//this.selectedTipoManutencao(treeBean);
+				treeBean.descricao = descricaoText.text.toLocaleUpperCase();
+				treeBean.tipoManutencao = tipoManutencaoCbx.selectedItem.valor;
+				treeBean.sos = (sosChb.selected)?'S':'N';
+				treeBean.smcs = smcsText.text;
+				myTree.invalidateList();
+				myTree.invalidateDisplayList();
+			}
+			private function selectedTipoManutencao(treeBean:TreeBean):void{
+				tipoManutencaoCbx.selectedIndex = -1;
+				var tmList:ArrayCollection = ArrayCollection(tipoManutencaoCbx.dataProvider);
+				for(var i:int=0; i < tmList.length; i++){
+					if(treeBean.tipoManutencao == tmList.getItemAt(i).valor){
+						tipoManutencaoCbx.selectedIndex = i;
+						break;
+					}
+				}
+			}
+			[Bindable]
+			private var newTree:CriarNovaArvore = null;
+			private function openPopupNewTree():void{
+				newTree = new CriarNovaArvore();
+				newTree.addEventListener(CloseEvent.CLOSE, removePopUpNewTree);
+				PopUpManager.addPopUp(newTree,this,true);
+				PopUpManager.centerPopUp(newTree)
+				//treeCbx.dataProvider = null;
+				myTree.dataProvider = null;
+				newTree.init(urlLogin, treeCbx.selectedItem as TreeBean, (familiaCbx.selectedItem as FamiliaBean).id);
+				
+			}
+			private function removePopUpNewTree(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				//if(newTree.isSave == true){
+					serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+				//}
+			}
+
+			private function saveNodo():void{
+				if(treeCbx.selectedIndex == -1){
+					Alert.show("Selecione uma árvore para ser salva!", "Alerta");
+					return;
+				}
+				var treeList:ArrayCollection = ArrayCollection(myTree.dataProvider);
+				if(treeList.length == 0){
+					Alert.show("Não permitido excluir um nó raiz da árvore!", "Alerta");
+					return;
+				}
+				var treeBean:TreeBean = TreeBean(treeList.getItemAt(0) as TreeBean);
+				var treePaiRoot:TreeBean = TreeBean(treeCbx.selectedItem);
+				serviceController.saveNodo(treeBean, treePaiRoot.idArv, FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			private function onResultSaveNodo(event:ResultEvent):void{
+				if(event.result != null){
+					Alert.show("Árvore salva com sucesso!", "Alerta");
+					myTree.dataProvider =  TreeBean(event.result);
+					novo_clickHandler(null);
+					return;
+				}
+				Alert.show("Não foi possível salvar árvore!", "Alerta");
+			}
+			protected function novo_clickHandler(event:MouseEvent):void
+			{
+				descricaoText.text = '';
+				tipoManutencaoCbx.selectedIndex = -1;
+				sosChb.selected = false;
+				editar.includeInLayout = false;
+				editar.visible = false;
+				add.includeInLayout = true;
+				add.visible = true;
+				smcsText.text = "";
+			}
+
+
+			protected function familiaCbx_changeHandler(event:ListEvent):void
+			{
+				cadTree.includeInLayout = true;
+				cadTree.visible = true;
+				serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+			}
+			
+			[Bindable]
+			private var copyTree:CopyTree;
+			public function popupCopyTree():void{
+				copyTree = new CopyTree();
+				copyTree.addEventListener(CloseEvent.CLOSE, removePopUpCopyTree);
+				PopUpManager.addPopUp(copyTree,this,true);
+				PopUpManager.centerPopUp(copyTree)
+				copyTree.percentWidth = 400;
+				copyTree.percentHeight = 300;
+				copyTree.init(TreeBean(treeCbx.selectedItem).idArv, FamiliaBean(familiaCbx.selectedItem).id, urlLogin);
+				
+				
+			}
+			private function removePopUpCopyTree(obj:CloseEvent):void{
+				PopUpManager.removePopUp(obj.currentTarget as IFlexDisplayObject);
+				serviceController.findAllTreePai(tipoTree, FamiliaBean(familiaCbx.selectedItem).id);
+				myTree.dataProvider = null;
+			}
+
+		]]>
+	</mx:Script>
+	<mx:ArrayCollection id="tipoManutencaoColl">
+		
+		<mx:Object label="PAI" valor="PAI"/>
+		<mx:Object label="PM100" valor="PM100"/>
+		<mx:Object label="PM1" valor="PM1"/>
+		<mx:Object label="PM2" valor="PM2"/>
+		<mx:Object label="PM1500" valor="PM1500"/>
+		<mx:Object label="PM3" valor="PM3"/>
+		<mx:Object label="PM4" valor="PM4"/>
+		<mx:Object label="PM3000" valor="PM3000"/>
+		<mx:Object label="PM4000" valor="PM4000"/>
+		<mx:Object label="PM6000" valor="PM6000"/>
+		<mx:Object label="PM12000" valor="PM12000"/>
+	</mx:ArrayCollection>  
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllTree" result="onResultFindAllTree(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTipoPm" result="onResultFindAllTipoPm(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllTreePai" result="onResultFindAllTreePai(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="saveNodo" result="onResultSaveNodo(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="findAllFamilia" result="onResultFindAllFamilia(event);ProgressBarHelper.removeProgressBar()" />
+		<mx:method name="removerNodo" result="onResultRemoverNodo(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:ApplicationControlBar x="0" y="0"  width="100%" horizontalAlign="center">
+		<mx:Label text="Árvore de Inspeção" fontWeight="bold"/>
+	</mx:ApplicationControlBar>
+	<mx:HBox x="0" y="66" width="100%" horizontalAlign="center" height="521">
+		<mx:VBox height="100%" verticalAlign="top">
+			<mx:Form height="100%" >
+				<mx:FormItem label="Família" required="false">
+					<mx:ComboBox id="familiaCbx" prompt="Selecione" selectedIndex="-1" labelField="descricao" change="familiaCbx_changeHandler(event)"></mx:ComboBox>
+				</mx:FormItem>
+				<mx:FormItem label="Máq." required="true" id="cadTree" visible="true" includeInLayout="true">
+					<mx:HBox>
+						<mx:ComboBox id="treeCbx" dataProvider="{listPaiTree}" labelField="descricao" change="treeCbx_changeHandler(event)"></mx:ComboBox>
+						<mx:Image width="24" height="26" source="img/tree.png" buttonMode="true" toolTip="Criar Nova Árvore" click="openPopupNewTree()"/>
+						<mx:Image width="29" height="26" source="img/copy.png" id="imgClonar" visible="false" buttonMode="true" toolTip="Clonar Árvore" click="popupCopyTree()"/>
+					</mx:HBox>	
+				</mx:FormItem>
+			</mx:Form>
+		</mx:VBox>
+		<mx:Tree id="myTree"  height="484" labelField="descricao" defaultLeafIcon="{null}" iconField="icon"
+				 showRoot="true" editable="false" width="619" itemClick="onClickTree()"/>
+		<mx:VBox height="100%" id="addItemHbox" includeInLayout="true" visible="true">
+			<mx:Form height="139">
+				<mx:FormItem label="Nodo" required="true" width="340">
+					<mx:TextInput width="278" id="descricaoText" maxChars="100"/>
+				</mx:FormItem>
+				<mx:FormItem label="Manut." required="true">
+					<mx:ComboBox  prompt="Selecione" selectedIndex="-1" id="tipoManutencaoCbx"></mx:ComboBox>
+				</mx:FormItem>	
+				<mx:FormItem label="SOS" width="94">
+					<mx:CheckBox id="sosChb"/>
+				</mx:FormItem>
+				<mx:FormItem label="SMCS" width="129">
+					<mx:TextInput width="66" id="smcsText" maxChars="10"/>
+				</mx:FormItem>
+			</mx:Form>
+			<mx:HBox width="100%" horizontalAlign="center" id="frmEditArv">
+				<mx:Button label="Edit" id="editar" click="editar_clickHandler(event)" includeInLayout="false" visible="false"/>
+				<mx:Button label="Add" click="addItem()" id="add"/>
+				<mx:Button label="Novo" id="novo" click="novo_clickHandler(event)"/>
+				<mx:Button label="Remover" click="removerItem()"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:HBox x="0" y="639" width="100%" horizontalAlign="center">
+		<mx:Button label="Salvar" click="saveNodo()" id="btnSalvar"/>
+	</mx:HBox>
+	
+</mx:Canvas>

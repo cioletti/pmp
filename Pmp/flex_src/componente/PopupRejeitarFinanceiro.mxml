@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<util:ModuleTitleWindow title="Aprovar Financeiro" xmlns:mx="http://www.adobe.com/2006/mxml" xmlns:util="util.*" layout="absolute" width="960" height="500">
+	<mx:Style source="pmpCSS.css"/>
+	<mx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			
+			private var urlLogin:String;
+			private var idFinanceiro:Number;
+			public var isAdd:Boolean = false;
+			
+			public function init(urlLogin:String, idFinanceiro:Number):void{
+				this.urlLogin = urlLogin;
+				this.idFinanceiro = idFinanceiro;
+			}
+
+			//Botão Pesquisar Peças através da OS
+			protected function pesquisa_clickHandler(event:MouseEvent):void
+			{	
+				if(obs.text == ""){
+					Alert.show("Por favor adicione uma observação ","Alerta");
+					return;
+				}
+				serviceController.rejeitarFinanceiro(this.idFinanceiro,obs.text);
+			}
+			
+			private function onResultRejeitarFinanceiro(event:ResultEvent):void{
+			if(Boolean(event.result) == true){
+				this.close(null);
+			}
+			}
+						
+			
+
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.erro(event,urlLogin);ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="rejeitarFinanceiro" result="onResultRejeitarFinanceiro(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	
+	<mx:VBox width="100%" height="100%" horizontalAlign="center" >
+
+		<mx:HBox width="95%" height="365" horizontalAlign="center" verticalAlign="middle">
+			<mx:Form>
+				<mx:FormItem label="Observação:" required="true">
+					<mx:TextInput id="obs"  height="304" width="429"/>
+				</mx:FormItem>
+			</mx:Form>
+		</mx:HBox>
+		<mx:Button label="Rejeitar" id="pesquisa" click="pesquisa_clickHandler(event)"/>
+				
+	</mx:VBox>	
+</util:ModuleTitleWindow>

@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" minWidth="955" minHeight="600" creationComplete="init()" backgroundImage="@Embed(source='./img/fundo_dashboard.png')">
+	<mx:Style source="pmpCSS.css"/>
+	<mx:Script>
+		<![CDATA[
+			import bean.DashboardBean;
+			
+			import mx.collections.ArrayCollection;
+			import mx.containers.HBox;
+			import mx.controls.Label;
+			import mx.rpc.events.ResultEvent;
+			
+			import util.ProgressBarHelper;
+			private function init():void{
+				serviceController.findAllIndicadores(null);
+			}
+			private function onResultFindAllIndicadores(event:ResultEvent):void{
+				this.createPanel(ArrayCollection(event.result));
+			}
+			
+			private function createPanel(listaPanel:ArrayCollection):void{
+				
+				if(listaPanel.length > 0){
+					var dbean:DashboardBean = DashboardBean(listaPanel.getItemAt(0));
+					var hbox:HBox = new HBox();
+					hbox.percentWidth = 110;
+					hbox.height = 42;
+					hbox.setStyle('horizontalAlign','center');
+					
+					var hboxLabel:HBox = new HBox();
+					var label:Label = new Label;
+					label.setStyle('color','white');
+					label.text = "";
+					hboxLabel.addChild(label);	
+					//hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 240;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = "Target";
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes1;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes2;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes3;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes4;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes5;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes6;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','white');
+					label.text = dbean.nomeMes7;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", 0x000000);
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					vBoxPai.addChild(hbox);
+				}
+				
+				for(var i:int = 0; i < listaPanel.length; i++){
+					var dbean:DashboardBean = DashboardBean(listaPanel.getItemAt(i));
+					var hbox:HBox = new HBox();
+					hbox.percentWidth = 110;
+					hbox.height = 42;
+					hbox.setStyle('horizontalAlign','center');
+					
+					var hboxLabel:HBox = new HBox();
+					var label:Label = new Label;
+					label.setStyle('color','black');
+					label.text = dbean.operacao;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#f2f2f2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 240;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color','black');
+					label.text = dbean.target;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#82c37a');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor1);
+					label.text = dbean.mes1;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#a2a1a2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor2);
+					label.text = dbean.mes2;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#c4c2c2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor3);
+					label.text = dbean.mes3;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#c4c2c2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor4);
+					label.text = dbean.mes4;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#c4c2c2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor5);
+					label.text = dbean.mes5;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#c4c2c2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor6);
+					label.text = dbean.mes6;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#c4c2c2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					
+					
+					
+					hboxLabel = new HBox();
+					label = new Label;
+					label.setStyle('color',dbean.cor7);
+					label.text = dbean.mes7;
+					hboxLabel.addChild(label);	
+					hboxLabel.setStyle("backgroundColor", '#c4c2c2');
+					hboxLabel.setStyle('horizontalAlign','center');
+					hboxLabel.setStyle('verticalAlign','middle');
+					hboxLabel.setStyle('fontSize',16);
+					hboxLabel.width = 140;
+					hboxLabel.height = 42;					
+					hbox.addChild(hboxLabel);
+					
+					vBoxPai.addChild(hbox);
+					
+				}
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:RemoteObject destination="service" invoke="{ProgressBarHelper.openProgressBar(this)}" id="serviceController" showBusyCursor="true" fault="{ProgressBarHelper.removeProgressBar();}">
+		<mx:method name="findAllIndicadores" result="onResultFindAllIndicadores(event);ProgressBarHelper.removeProgressBar()" />
+	</mx:RemoteObject>
+	<mx:VBox x="0" y="61" height="100%" width="100%" verticalAlign="top" horizontalAlign="center" id="vBoxPai">
+		<mx:ApplicationControlBar width="100%" horizontalAlign="center">
+			<mx:Label text="Operacional Dashboard" fontSize="20"/>
+		</mx:ApplicationControlBar>
+	</mx:VBox>
+	
+</mx:Application>
