@@ -430,6 +430,10 @@ public class OsBusiness {
 				}
 				if(pdp.toString().length() == 1 && pdp.intValue() > 0){
 					descPdp = "0"+pdp;
+				}else{
+					if(pdp.intValue() != 0){
+						descPdp = pdp.toString();
+					}
 				}
 				if(this.createOsEstimada(osOperacional.getId().toString(), bean.getSegmento(), osOperacional.getCscc(), 
 						bean.getJobCode(), bean.getComponenteCode(), osOperacional.getInd(), bean.getJobControl(), ((new Integer(this.FILIAL) < 10)?"0"+this.FILIAL:this.FILIAL).toString(), bean.getCodigoCliente()
